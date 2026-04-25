@@ -248,7 +248,7 @@ html, body {
   background: rgba(12,15,30,0.98);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 24px 24px 0 0;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 -4px 40px rgba(0,0,0,0.4);
   transform: translateY(100%);
   transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1);
@@ -327,15 +327,16 @@ html, body {
 .btn-reserve:active { background: #ffc82a; }
 
 .venue-card-close {
-  position: absolute; top: 16px; right: 16px;
-  width: 32px; height: 32px; border-radius: 50%;
-  background: rgba(255,255,255,0.1); border: none;
-  color: rgba(255,255,255,0.6); font-size: 18px;
+  position: absolute; top: 14px; right: 14px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.12); border: none;
+  color: #fff; font-size: 16px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; z-index: 10;
+  cursor: pointer; z-index: 2000;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.venue-card-close:active { background: rgba(255,255,255,0.18); }
+.venue-card-close:active { background: rgba(255,255,255,0.25); }
 
 /* ── TOAST ── */
 #toast {
@@ -536,7 +537,16 @@ document.getElementById('geoBtn').addEventListener('click', () => {
   }, () => showToast('❌ Access denied'));
 });
 
-map.on('click', e => { lng = e.lngLat.lng; lat = e.lngLat.lat; showToast('📍 Location updated'); });
+
+
+map.on('click', e => {
+  if (currentVenue) {
+    closeVenueCard();
+  } else {
+    lng = e.lngLat.lng; lat = e.lngLat.lat;
+    showToast('📍 Location updated');
+  }
+});
 
 // ── SEARCH
 const si=document.getElementById('searchInput'),acList=document.getElementById('ac-list'),spn=document.getElementById('spinner'),sico=document.querySelector('.s-icon');
@@ -740,45 +750,38 @@ document.getElementById('venueClose').addEventListener('click', (e) => {
 
 // Close on map click
 // Close card on map click
-map.on('click', () => {
-  closeVenueCard();
-});
+
 
 // Markers initialized in style.load above
 
 
-// Swipe down to close venue card
+// Swipe down handle to close
 (function() {
-  const card = document.getElementById('venueCard');
-  let startY = 0, currentY = 0, dragging = false;
+  const handle = document.querySelector('.card-handle');
+  const card   = document.getElementById('venueCard');
+  let startY = 0, active = false;
 
-  card.addEventListener('touchstart', e => {
-    startY = e.touches[0].clientY;
-    dragging = true;
-  }, { passive: true });
-
-  card.addEventListener('touchmove', e => {
-    if (!dragging) return;
-    currentY = e.touches[0].clientY;
-    const dy = currentY - startY;
-    if (dy > 0) {
-      card.style.transition = 'none';
-      card.style.transform = `translateY(${dy}px)`;
-      e.stopPropagation();
-    }
-  }, { passive: true });
-
-  card.addEventListener('touchend', e => {
-    if (!dragging) return;
-    dragging = false;
+  function onStart(y) { startY = y; active = true; card.style.transition = 'none'; }
+  function onMove(y)  {
+    if (!active) return;
+    const dy = Math.max(0, y - startY);
+    card.style.transform = `translateY(${dy}px)`;
+  }
+  function onEnd(y) {
+    if (!active) return;
+    active = false;
     card.style.transition = '';
-    const dy = currentY - startY;
-    if (dy > 80) {
-      closeVenueCard();
-    } else {
-      card.style.transform = '';
-    }
-  }, { passive: true });
+    if (y - startY > 60) { closeVenueCard(); }
+    else { card.style.transform = ''; }
+  }
+
+  handle.addEventListener('touchstart', e => onStart(e.touches[0].clientY), { passive: true });
+  handle.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e.touches[0].clientY); }, { passive: false });
+  handle.addEventListener('touchend',   e => onEnd(e.changedTouches[0].clientY), { passive: true });
+
+  handle.addEventListener('mousedown', e => onStart(e.clientY));
+  window.addEventListener('mousemove', e => { if (active) onMove(e.clientY); });
+  window.addEventListener('mouseup',   e => onEnd(e.clientY));
 })();
 
 </script>
