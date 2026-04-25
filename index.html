@@ -171,6 +171,7 @@ html, body {
   gap: 8px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
   width: 56px;
+  transition: opacity 0.2s;
 }
 .pill-time {
   font-family: 'Playfair Display', serif;
@@ -409,6 +410,7 @@ html, body {
 mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
 
 let lat = 45.5088, lng = -73.5878;
+let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
 let toastTmt, acTimeout, dragging = false;
 
@@ -421,6 +423,14 @@ const map = new mapboxgl.Map({
   pitch: 45,
   antialias: true,
 });
+
+// Auto-detect user position for better search results
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(p => {
+    userLat = p.coords.latitude;
+    userLng = p.coords.longitude;
+  }, () => {});
+}
 map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
 
 // ── SOLAR
@@ -542,6 +552,7 @@ document.getElementById('geoBtn').addEventListener('click', () => {
   showToast('📡 Locating…');
   navigator.geolocation.getCurrentPosition(p => {
     lat = p.coords.latitude; lng = p.coords.longitude;
+    userLat = lat; userLng = lng;
     map.flyTo({ center: [lng, lat], zoom: 16, duration: 1200 });
     go(); showToast('🎯 Location found!');
   }, () => showToast('❌ Access denied'));
@@ -562,6 +573,16 @@ map.on('click', e => {
 
 // ── SEARCH
 const si=document.getElementById('searchInput'),acList=document.getElementById('ac-list'),spn=document.getElementById('spinner'),sico=document.querySelector('.s-icon');
+si.addEventListener('focus', () => {
+  document.querySelector('.time-pill').style.opacity = '0';
+  document.querySelector('.time-pill').style.pointerEvents = 'none';
+});
+si.addEventListener('blur', () => {
+  setTimeout(() => {
+    document.querySelector('.time-pill').style.opacity = '1';
+    document.querySelector('.time-pill').style.pointerEvents = '';
+  }, 200);
+});
 si.addEventListener('input',()=>{
   clearTimeout(acTimeout); const q=si.value.trim();
   if(q.length<2){acList.style.display='none';return;}
@@ -571,7 +592,7 @@ async function fetchPlaces(q){
   spn.style.display='block'; sico.style.display='none';
   try {
     // Mapbox Search Box API — built for POI (bars, restaurants, cafes...)
-    const url = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${mapboxgl.accessToken}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${lng},${lat}`;
+    const url = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${mapboxgl.accessToken}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${userLng||lng},${userLat||lat}`;
     const res = await fetch(url);
     const data = await res.json();
     renderAC(data.suggestions || []);
