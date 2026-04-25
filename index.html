@@ -338,6 +338,16 @@ html, body {
 }
 .venue-card-close:active { background: rgba(255,255,255,0.25); }
 
+/* ── CARD BACKDROP ── */
+#cardBackdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: transparent;
+}
+#cardBackdrop.visible { display: block; }
+
 /* ── TOAST ── */
 #toast {
   position: absolute;
@@ -540,12 +550,14 @@ document.getElementById('geoBtn').addEventListener('click', () => {
 
 
 map.on('click', e => {
-  if (currentVenue) {
-    closeVenueCard();
-  } else {
-    lng = e.lngLat.lng; lat = e.lngLat.lat;
-    showToast('📍 Location updated');
+  // Don't fire if user tapped on the venue card or any overlay UI
+  const card = document.getElementById('venueCard');
+  if (card.classList.contains('visible')) {
+    // Let card handle its own events
+    return;
   }
+  lng = e.lngLat.lng; lat = e.lngLat.lat;
+  showToast('📍 Location updated');
 });
 
 // ── SEARCH
@@ -697,6 +709,7 @@ function closeVenueCard() {
   const card = document.getElementById('venueCard');
   card.style.transform = '';
   card.classList.remove('visible');
+  document.getElementById('cardBackdrop').classList.remove('visible');
   currentVenue = null;
 }
 
@@ -704,6 +717,7 @@ function openVenueCard(venue) {
   currentVenue = venue;
   updateVenueCard(venue);
   document.getElementById('venueCard').classList.add('visible');
+  document.getElementById('cardBackdrop').classList.add('visible');
   // Smooth zoom to venue, offset center slightly right to leave room for card
   map.flyTo({
     center: [venue.lng, venue.lat],
@@ -742,10 +756,14 @@ function updateVenueCard(venue) {
 }
 
 // Close card
-document.getElementById('venueClose').addEventListener('click', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  closeVenueCard();
+const closeBtn = document.getElementById('venueClose');
+['click', 'touchend'].forEach(evt => {
+  closeBtn.addEventListener(evt, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    closeVenueCard();
+  }, { capture: true });
 });
 
 // Close on map click
@@ -755,37 +773,47 @@ document.getElementById('venueClose').addEventListener('click', (e) => {
 // Markers initialized in style.load above
 
 
-// Swipe down handle to close
+// Swipe to close - on the whole card
 (function() {
-  const handle = document.querySelector('.card-handle');
-  const card   = document.getElementById('venueCard');
-  let startY = 0, active = false;
+  const card = document.getElementById('venueCard');
+  let startY = 0, active = false, moved = 0;
 
-  function onStart(y) { startY = y; active = true; card.style.transition = 'none'; }
-  function onMove(y)  {
+  card.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY;
+    active = true;
+    moved = 0;
+    card.style.transition = 'none';
+  }, { passive: true });
+
+  card.addEventListener('touchmove', e => {
     if (!active) return;
-    const dy = Math.max(0, y - startY);
-    card.style.transform = `translateY(${dy}px)`;
-  }
-  function onEnd(y) {
+    moved = e.touches[0].clientY - startY;
+    if (moved > 0) {
+      card.style.transform = 'translateY(' + moved + 'px)';
+    }
+  }, { passive: true });
+
+  card.addEventListener('touchend', e => {
     if (!active) return;
     active = false;
     card.style.transition = '';
-    if (y - startY > 60) { closeVenueCard(); }
-    else { card.style.transform = ''; }
-  }
-
-  handle.addEventListener('touchstart', e => onStart(e.touches[0].clientY), { passive: true });
-  handle.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e.touches[0].clientY); }, { passive: false });
-  handle.addEventListener('touchend',   e => onEnd(e.changedTouches[0].clientY), { passive: true });
-
-  handle.addEventListener('mousedown', e => onStart(e.clientY));
-  window.addEventListener('mousemove', e => { if (active) onMove(e.clientY); });
-  window.addEventListener('mouseup',   e => onEnd(e.clientY));
+    if (moved > 70) {
+      closeVenueCard();
+    } else {
+      card.style.transform = '';
+    }
+  }, { passive: true });
 })();
 
+
+document.getElementById('cardBackdrop').addEventListener('click', closeVenueCard);
+document.getElementById('cardBackdrop').addEventListener('touchend', (e) => {
+  e.preventDefault();
+  closeVenueCard();
+});
 </script>
 
+<div id="cardBackdrop"></div>
 <!-- Venue card -->
 <div class="venue-card" id="venueCard">
   <div class="card-handle"></div>
