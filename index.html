@@ -472,6 +472,7 @@ map.on('style.load', () => {
   map.setConfigProperty('basemap', 'show3dObjects', true);
   updateSliderUI();
   go();
+  addVenueMarkers();
 });
 
 // ── GEOLOC
@@ -545,38 +546,39 @@ window.addEventListener('resize', updateSliderUI);
 const VENUES = [
   {
     id: 'v1',
-    name: 'Terrasse Saint-Denis',
-    type: '🍺 Bar · Terrace',
-    emoji: '🍺',
-    lng: -73.5820,
-    lat: 45.5125,
-    reserveUrl: 'https://example.com/reserve',
-    directionsUrl: 'https://maps.google.com/?q=Terrasse+Saint-Denis+Montreal',
-    // Sun windows: [startHour, endHour] when terrace is in direct sun
-    // You define these based on your knowledge of the spot
-    sunWindows: [[11, 15], [17, 19]],
+    name: 'Café Olimpico',
+    type: '☕ Café · Terrasse Mile End',
+    emoji: '☕',
+    lng: -73.5998,
+    lat: 45.5239,
+    reserveUrl: 'https://cafeolimpico.com',
+    directionsUrl: 'https://maps.google.com/?q=124+Rue+Saint-Viateur+O,+Montréal',
+    // Terrasse sur rue Saint-Viateur, exposée sud/est — soleil matin et midi
+    sunWindows: [[7, 13]],
   },
   {
     id: 'v2',
-    name: 'Café Plateau',
-    type: '☕ Café · Patio',
-    emoji: '☕',
-    lng: -73.5780,
-    lat: 45.5200,
-    reserveUrl: 'https://example.com/reserve',
-    directionsUrl: 'https://maps.google.com/?q=Cafe+Plateau+Montreal',
-    sunWindows: [[9, 13]],
+    name: 'Bar Plan B',
+    type: '🍸 Bar · Terrasse arrière',
+    emoji: '🍸',
+    lng: -73.5793,
+    lat: 45.5213,
+    reserveUrl: 'https://barplanb.ca',
+    directionsUrl: 'https://maps.google.com/?q=327+Avenue+du+Mont-Royal+E,+Montréal',
+    // Terrasse à l'arrière, exposée ouest — soleil l'après-midi
+    sunWindows: [[15, 20]],
   },
   {
     id: 'v3',
-    name: 'Le Jardin',
-    type: '🍽️ Restaurant · Garden',
-    emoji: '🍽️',
-    lng: -73.5695,
-    lat: 45.5088,
-    reserveUrl: 'https://example.com/reserve',
-    directionsUrl: 'https://maps.google.com/?q=Le+Jardin+Montreal',
-    sunWindows: [[12, 16], [18, 20]],
+    name: 'Dieu du Ciel!',
+    type: '🍺 Brasserie · Terrasse Laurier',
+    emoji: '🍺',
+    lng: -73.6001,
+    lat: 45.5271,
+    reserveUrl: 'https://dieuduciel.com',
+    directionsUrl: 'https://maps.google.com/?q=29+Avenue+Laurier+O,+Montréal',
+    // Terrasse sur Laurier Ouest, exposée sud — soleil midi et après-midi
+    sunWindows: [[11, 17]],
   },
 ];
 
@@ -689,8 +691,7 @@ map.on('click', () => {
   currentVenue = null;
 });
 
-// Init markers after map loads
-map.on('style.load', addVenueMarkers);
+// Markers initialized in style.load above
 
 </script>
 
