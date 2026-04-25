@@ -570,7 +570,7 @@ si.addEventListener('input',()=>{
 async function fetchPlaces(q){
   spn.style.display='block';sico.style.display='none';
   try{
-    const url=`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${mapboxgl.accessToken}&language=fr&limit=5&proximity=${lng},${lat}`;
+    const url=`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${mapboxgl.accessToken}&language=fr&limit=6&types=poi,address&proximity=${lng},${lat}&bbox=-74.0,45.3,-73.4,45.7`;
     const res=await fetch(url);const data=await res.json();
     renderAC(data.features||[]);
   }catch{acList.style.display='none';}
