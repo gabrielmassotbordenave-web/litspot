@@ -568,30 +568,46 @@ si.addEventListener('input',()=>{
   acTimeout=setTimeout(()=>fetchPlaces(q),300);
 });
 async function fetchPlaces(q){
-  spn.style.display='block';sico.style.display='none';
-  try{
-    const url=`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${mapboxgl.accessToken}&language=fr&limit=6&types=poi,address&proximity=${lng},${lat}&bbox=-74.0,45.3,-73.4,45.7`;
-    const res=await fetch(url);const data=await res.json();
-    renderAC(data.features||[]);
-  }catch{acList.style.display='none';}
-  finally{spn.style.display='none';sico.style.display='block';}
+  spn.style.display='block'; sico.style.display='none';
+  try {
+    // Mapbox Search Box API — built for POI (bars, restaurants, cafes...)
+    const url = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${mapboxgl.accessToken}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${lng},${lat}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    renderAC(data.suggestions || []);
+  } catch { acList.style.display='none'; }
+  finally { spn.style.display='none'; sico.style.display='block'; }
 }
-function renderAC(features){
-  if(!features.length){acList.style.display='none';return;}
-  acList.innerHTML='';
-  features.forEach(f=>{
-    const item=document.createElement('div');item.className='ac-item';
-    const name=f.text||f.place_name.split(',')[0];
-    const addr=f.place_name.split(',').slice(1,3).join(', ').trim();
-    item.innerHTML=`<div class="ac-name">${name}</div><div class="ac-addr">${addr}</div>`;
-    item.addEventListener('click',()=>{
-      lng=f.center[0];lat=f.center[1];si.value=name;acList.style.display='none';
-      map.flyTo({center:[lng,lat],zoom:17,duration:1000});
-      go();showToast('📍 '+name);
-    });
+
+async function selectPlace(mapboxId, name) {
+  try {
+    const url = `https://api.mapbox.com/search/searchbox/v1/retrieve/${mapboxId}?access_token=${mapboxgl.accessToken}&session_token=litspot-session`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const feat = data.features?.[0];
+    if (!feat) return;
+    lng = feat.geometry.coordinates[0];
+    lat = feat.geometry.coordinates[1];
+    si.value = name;
+    acList.style.display = 'none';
+    map.flyTo({ center: [lng, lat], zoom: 17, duration: 1000 });
+    go();
+    showToast('📍 ' + name);
+  } catch {}
+}
+
+function renderAC(suggestions) {
+  if (!suggestions.length) { acList.style.display='none'; return; }
+  acList.innerHTML = '';
+  suggestions.forEach(s => {
+    const item = document.createElement('div'); item.className = 'ac-item';
+    const name = s.name || s.name_preferred || '';
+    const addr = s.place_formatted || s.full_address || '';
+    item.innerHTML = `<div class="ac-name">${name}</div><div class="ac-addr">${addr}</div>`;
+    item.addEventListener('click', () => selectPlace(s.mapbox_id, name));
     acList.appendChild(item);
   });
-  acList.style.display='block';
+  acList.style.display = 'block';
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))acList.style.display='none';});
 si.addEventListener('keydown',async e=>{
