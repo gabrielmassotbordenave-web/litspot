@@ -597,37 +597,34 @@ const VENUES = [
   {
     id: 'v1',
     name: 'Café Olimpico',
-    type: '☕ Café · Terrasse Mile End',
+    type: '☕ Café · Mile End',
     emoji: '☕',
-    lng: -73.5998,
-    lat: 45.5239,
+    lng: -73.6002501,
+    lat: 45.5241048,
     reserveUrl: 'https://cafeolimpico.com',
-    directionsUrl: 'https://maps.google.com/?q=124+Rue+Saint-Viateur+O,+Montréal',
-    // Terrasse sur rue Saint-Viateur, exposée sud/est — soleil matin et midi
+    directionsUrl: 'https://maps.google.com/?q=124+Rue+Saint-Viateur+O,+Montreal',
     sunWindows: [[7, 13]],
   },
   {
     id: 'v2',
-    name: 'Bar Plan B',
-    type: '🍸 Bar · Terrasse arrière',
+    name: 'Bar Plan-B',
+    type: '🍸 Bar · Plateau',
     emoji: '🍸',
-    lng: -73.5793,
-    lat: 45.5213,
+    lng: -73.5837028,
+    lat: 45.5232472,
     reserveUrl: 'https://barplanb.ca',
-    directionsUrl: 'https://maps.google.com/?q=327+Avenue+du+Mont-Royal+E,+Montréal',
-    // Terrasse à l'arrière, exposée ouest — soleil l'après-midi
+    directionsUrl: 'https://maps.google.com/?q=327+Avenue+du+Mont-Royal+E,+Montreal',
     sunWindows: [[15, 20]],
   },
   {
     id: 'v3',
     name: 'Dieu du Ciel!',
-    type: '🍺 Brasserie · Terrasse Laurier',
+    type: '🍺 Brasserie · Mile End',
     emoji: '🍺',
-    lng: -73.6001,
-    lat: 45.5271,
+    lng: -73.5933601,
+    lat: 45.52279,
     reserveUrl: 'https://dieuduciel.com',
-    directionsUrl: 'https://maps.google.com/?q=29+Avenue+Laurier+O,+Montréal',
-    // Terrasse sur Laurier Ouest, exposée sud — soleil midi et après-midi
+    directionsUrl: 'https://maps.google.com/?q=21+Avenue+Laurier+O,+Montreal',
     sunWindows: [[11, 17]],
   },
 ];
@@ -686,6 +683,13 @@ function updateVenuePins() {
 
 // Open venue card
 let currentVenue = null;
+function closeVenueCard() {
+  const card = document.getElementById('venueCard');
+  card.style.transform = '';
+  card.classList.remove('visible');
+  currentVenue = null;
+}
+
 function openVenueCard(venue) {
   currentVenue = venue;
   updateVenueCard(venue);
@@ -729,22 +733,15 @@ function updateVenueCard(venue) {
 
 // Close card
 document.getElementById('venueClose').addEventListener('click', (e) => {
+  e.preventDefault();
   e.stopPropagation();
-  document.getElementById('venueCard').classList.remove('visible');
-  currentVenue = null;
+  closeVenueCard();
 });
 
 // Close on map click
+// Close card on map click
 map.on('click', () => {
-  // Only close card if clicking the map itself, not the card
-  // (card clicks are stopped by the card's own listener below)
-  document.getElementById('venueCard').classList.remove('visible');
-  currentVenue = null;
-});
-
-// Prevent map click from firing when clicking inside the card
-document.getElementById('venueCard').addEventListener('click', e => {
-  e.stopPropagation();
+  closeVenueCard();
 });
 
 // Markers initialized in style.load above
@@ -753,26 +750,31 @@ document.getElementById('venueCard').addEventListener('click', e => {
 // Swipe down to close venue card
 (function() {
   const card = document.getElementById('venueCard');
-  let startY = 0, isDragging = false;
+  let startY = 0, currentY = 0, dragging = false;
+
   card.addEventListener('touchstart', e => {
     startY = e.touches[0].clientY;
-    isDragging = true;
+    dragging = true;
   }, { passive: true });
+
   card.addEventListener('touchmove', e => {
-    if (!isDragging) return;
-    const dy = e.touches[0].clientY - startY;
+    if (!dragging) return;
+    currentY = e.touches[0].clientY;
+    const dy = currentY - startY;
     if (dy > 0) {
+      card.style.transition = 'none';
       card.style.transform = `translateY(${dy}px)`;
-      e.preventDefault();
+      e.stopPropagation();
     }
-  }, { passive: false });
+  }, { passive: true });
+
   card.addEventListener('touchend', e => {
-    isDragging = false;
-    const dy = e.changedTouches[0].clientY - startY;
+    if (!dragging) return;
+    dragging = false;
+    card.style.transition = '';
+    const dy = currentY - startY;
     if (dy > 80) {
-      card.style.transform = '';
-      card.classList.remove('visible');
-      currentVenue = null;
+      closeVenueCard();
     } else {
       card.style.transform = '';
     }
