@@ -52,260 +52,310 @@
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 <style>
-*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; }
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; height: 100dvh;
+  overflow: hidden;
+  font-family: 'Outfit', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
 #map { position: absolute; inset: 0; }
 
-/* Mapbox controls */
-.mapboxgl-ctrl-group { background: rgba(255,255,255,0.92) !important; border: 1px solid rgba(0,0,0,0.08) !important; }
+/* Mapbox controls — push above safe area */
+.mapboxgl-ctrl-group {
+  background: rgba(255,255,255,0.92) !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+}
 .mapboxgl-ctrl-attrib { font-size: 9px !important; }
+.mapboxgl-ctrl-bottom-right {
+  bottom: calc(env(safe-area-inset-bottom) + 16px) !important;
+  right: 12px !important;
+}
 
 /* ── SEARCH BAR ── */
 .top-bar {
-  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
-  z-index: 100; display: flex; gap: 10px; align-items: center;
-  width: calc(100vw - 32px); max-width: 480px;
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 12px; right: 12px;
+  z-index: 100;
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 .search-wrap { position: relative; flex: 1; }
 #searchInput {
-  width: 100%; background: rgba(255,255,255,0.96);
-  border: 1.5px solid rgba(0,0,0,0.1); border-radius: 14px;
-  padding: 12px 44px 12px 16px; font-family: 'Outfit', sans-serif;
-  font-size: 15px; color: #1a1a2e; outline: none;
+  width: 100%;
+  background: rgba(255,255,255,0.97);
+  border: 1.5px solid rgba(0,0,0,0.08);
+  border-radius: 14px;
+  padding: 14px 44px 14px 16px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px; /* 16px prevents iOS zoom on focus */
+  color: #1a1a2e;
+  outline: none;
   box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-  transition: border-color .2s, box-shadow .2s;
+  -webkit-appearance: none;
 }
 #searchInput::placeholder { color: rgba(0,0,0,0.3); }
-#searchInput:focus { border-color: #FFB800; box-shadow: 0 0 0 3px rgba(255,184,0,0.18); }
-.s-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; pointer-events: none; opacity: .35; }
-#spinner { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; border: 2px solid rgba(0,0,0,0.08); border-top-color: #FFB800; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
-@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
-@keyframes fadeHint { 0%{opacity:0} 20%{opacity:1} 70%{opacity:1} 100%{opacity:0} }
-#ac-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: rgba(255,255,255,0.98); border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; overflow: hidden; box-shadow: 0 12px 36px rgba(0,0,0,0.14); z-index: 500; display: none; }
-.ac-item { padding: 11px 16px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.04); transition: background .15s; }
-.ac-item:last-child { border-bottom: none; }
-.ac-item:hover { background: rgba(255,184,0,0.07); }
-.ac-name { font-size: 14px; font-weight: 500; color: #1a1a2e; }
-.ac-addr { font-size: 11px; color: rgba(0,0,0,0.35); margin-top: 2px; }
-.geo-btn {
-  width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
-  background: rgba(255,255,255,0.96); border: 1.5px solid rgba(0,0,0,0.1);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 19px; cursor: pointer; transition: all .2s;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+#searchInput:focus { border-color: #FFB800; }
+.s-icon {
+  position: absolute; right: 14px; top: 50%;
+  transform: translateY(-50%); font-size: 18px;
+  pointer-events: none; opacity: .35;
 }
-.geo-btn:hover { background: rgba(255,184,0,0.1); border-color: rgba(255,184,0,0.4); }
+#spinner {
+  position: absolute; right: 14px; top: 50%;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  border: 2px solid rgba(0,0,0,0.08);
+  border-top-color: #FFB800;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: none;
+}
+@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
 
-/* ── TIME PILL (vertical, left side) ── */
+#ac-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  background: rgba(255,255,255,0.99);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.14);
+  z-index: 500;
+  display: none;
+}
+.ac-item {
+  padding: 14px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  -webkit-tap-highlight-color: rgba(255,184,0,0.1);
+}
+.ac-item:last-child { border-bottom: none; }
+.ac-item:active { background: rgba(255,184,0,0.08); }
+.ac-name { font-size: 15px; font-weight: 500; color: #1a1a2e; }
+.ac-addr { font-size: 12px; color: rgba(0,0,0,0.35); margin-top: 3px; }
+
+.geo-btn {
+  width: 52px; height: 52px;
+  border-radius: 14px; flex-shrink: 0;
+  background: rgba(255,255,255,0.97);
+  border: 1.5px solid rgba(0,0,0,0.08);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  -webkit-tap-highlight-color: transparent;
+}
+.geo-btn:active { background: rgba(255,184,0,0.12); }
+
+/* ── TIME PILL ── */
 .time-pill {
   position: absolute;
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 100;
-  background: rgba(12, 15, 30, 0.88);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(12,15,30,0.9);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 22px;
   padding: 14px 0;
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
   width: 56px;
-  flex-shrink: 0;
 }
-
 .pill-time {
   font-family: 'Playfair Display', serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #fff;
-  letter-spacing: -0.5px;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
-  width: 100%;
+  font-size: 15px; font-weight: 600;
+  color: #fff; letter-spacing: -0.5px;
+  line-height: 1; text-align: center;
+  white-space: nowrap; width: 100%;
 }
-
 .pill-status {
-  font-size: 16px;
-  line-height: 1;
-  text-align: center;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 18px; line-height: 1;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-
-/* Vertical slider */
 .slider-track {
   position: relative;
-  width: 4px;
-  height: 120px;
+  width: 4px; height: 130px;
   background: rgba(255,255,255,0.12);
   border-radius: 2px;
   cursor: pointer;
+  touch-action: none;
 }
 .slider-fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #FFB800;
-  border-radius: 2px;
-  transition: height .05s;
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: #FFB800; border-radius: 2px;
 }
 .slider-thumb {
-  position: absolute;
-  left: 50%;
+  position: absolute; left: 50%;
   transform: translateX(-50%);
-  width: 16px;
-  height: 16px;
+  width: 22px; height: 22px;
   background: radial-gradient(circle at 38% 38%, #ffe07a, #FFB800);
   border-radius: 50%;
-  box-shadow: 0 0 0 2px rgba(255,184,0,0.3), 0 0 10px rgba(255,184,0,0.5);
-  cursor: grab;
-  transition: bottom .05s;
+  box-shadow: 0 0 0 3px rgba(255,184,0,0.25), 0 0 12px rgba(255,184,0,0.5);
 }
-.slider-thumb:active { cursor: grabbing; }
-
 .pill-sun {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  color: rgba(255,255,255,0.45);
-  text-align: center;
-  line-height: 1.3;
-  width: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  font-size: 10px; color: rgba(255,255,255,0.45);
+  text-align: center; line-height: 1.3; width: 100%;
 }
-.pill-sun b { color: rgba(255,255,255,0.75); font-weight: 500; display: block; font-size: 10px; white-space: nowrap; }
-
-/* ── TOAST ── */
-#toast {
-  position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(8px);
-  background: rgba(12,15,30,0.95); border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px; padding: 9px 18px; font-size: 13px; color: #fff;
-  z-index: 200; pointer-events: none; opacity: 0;
-  transition: opacity .25s, transform .25s; white-space: nowrap;
+.pill-sun b {
+  color: rgba(255,255,255,0.75);
+  font-weight: 500; display: block;
+  font-size: 10px; white-space: nowrap;
 }
-#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ── VENUE PINS ── */
 .venue-pin {
-  width: 40px;
-  height: 40px;
+  width: 44px; height: 44px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
   border: 3px solid #fff;
   box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-  /* NO position:relative, NO transform on idle — causes anchor drift */
   flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
 }
-.venue-pin:hover { outline: 3px solid rgba(255,255,255,0.5); }
 .venue-pin.in-sun {
   background: #FFB800;
   box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 4px rgba(255,184,0,0.3);
   animation: pinPulse 2s ease-in-out infinite;
 }
 .venue-pin.in-shade { background: #4a5a8a; }
-/* No .pin-badge — removed, caused anchor issues */
 @keyframes pinPulse {
   0%,100% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 4px rgba(255,184,0,0.3); }
-  50% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 8px rgba(255,184,0,0); }
+  50% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 10px rgba(255,184,0,0); }
 }
 
-/* ── VENUE CARD ── */
+/* ── VENUE CARD — bottom sheet on mobile ── */
 .venue-card {
-  position: absolute; bottom: 24px; right: 16px;
-  width: 280px; z-index: 200;
-  background: rgba(12,15,30,0.97);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 20px;
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: rgba(12,15,30,0.98);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px 24px 0 0;
   overflow: hidden;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.4);
-  transform: translateY(20px); opacity: 0;
-  transition: transform .3s, opacity .3s;
+  box-shadow: 0 -4px 40px rgba(0,0,0,0.4);
+  transform: translateY(100%);
+  transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1);
   pointer-events: none;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
 }
-.venue-card.visible { transform: translateY(0); opacity: 1; pointer-events: all; }
+.venue-card.visible {
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* drag handle */
+.card-handle {
+  width: 36px; height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  margin: 12px auto 0;
+}
+
 .venue-card-header {
-  padding: 16px 16px 12px;
+  padding: 12px 20px 14px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .venue-card-status {
   display: flex; align-items: center; gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .status-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  flex-shrink: 0;
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
 }
 .status-dot.sun { background: #FFB800; box-shadow: 0 0 6px rgba(255,184,0,0.7); }
 .status-dot.shade { background: #4a5a8a; }
-.venue-status-txt { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
+.venue-status-txt { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
 .venue-status-txt.sun { color: #FFB800; }
 .venue-status-txt.shade { color: #8a9abf; }
 .venue-name {
   font-family: 'Playfair Display', serif;
-  font-size: 20px; font-weight: 600; color: #fff;
-  margin-bottom: 3px;
+  font-size: 22px; font-weight: 600; color: #fff; margin-bottom: 2px;
 }
 .venue-type { font-size: 12px; color: rgba(255,255,255,0.4); }
-.venue-card-body { padding: 12px 16px 16px; }
+
+.venue-card-body { padding: 14px 20px 16px; }
 .sun-schedule {
   background: rgba(255,255,255,0.04);
-  border-radius: 12px; padding: 10px 12px;
-  margin-bottom: 12px;
+  border-radius: 12px; padding: 10px 14px; margin-bottom: 14px;
 }
-.sun-schedule-title { font-size: 10px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
-.sun-slots { display: flex; flex-direction: column; gap: 4px; }
-.sun-slot {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px;
+.sun-schedule-title {
+  font-size: 10px; color: rgba(255,255,255,0.35);
+  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
 }
+.sun-slots { display: flex; flex-direction: column; gap: 6px; }
+.sun-slot { display: flex; align-items: center; gap: 8px; }
 .slot-bar {
   flex: 1; height: 4px; border-radius: 2px;
   background: rgba(255,255,255,0.08); overflow: hidden;
 }
 .slot-fill { height: 100%; border-radius: 2px; background: #FFB800; }
 .slot-time { font-size: 11px; color: rgba(255,255,255,0.5); white-space: nowrap; }
-.venue-cta {
-  display: flex; gap: 8px;
+
+.venue-cta { display: flex; gap: 10px; }
+.btn-directions, .btn-reserve {
+  flex: 1; padding: 14px 10px; border-radius: 14px;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; text-align: center;
+  font-family: 'Outfit', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  border: none;
 }
 .btn-directions {
-  flex: 1; padding: 9px; border-radius: 10px;
-  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.7); font-size: 12px; font-weight: 500;
-  cursor: pointer; text-align: center; transition: background .2s;
-  font-family: 'Outfit', sans-serif;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.75);
 }
-.btn-directions:hover { background: rgba(255,255,255,0.12); }
-.btn-reserve {
-  flex: 1; padding: 9px; border-radius: 10px;
-  background: #FFB800; border: none;
-  color: #0d1117; font-size: 12px; font-weight: 600;
-  cursor: pointer; text-align: center; transition: background .2s;
-  font-family: 'Outfit', sans-serif;
-}
-.btn-reserve:hover { background: #ffc82a; }
-.venue-card-close {
-  position: absolute; top: 12px; right: 12px;
-  width: 24px; height: 24px; border-radius: 50%;
-  background: rgba(255,255,255,0.08); border: none;
-  color: rgba(255,255,255,0.5); font-size: 14px;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-}
+.btn-directions:active { background: rgba(255,255,255,0.14); }
+.btn-reserve { background: #FFB800; color: #0d1117; }
+.btn-reserve:active { background: #ffc82a; }
 
+.venue-card-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); border: none;
+  color: rgba(255,255,255,0.6); font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 10;
+  -webkit-tap-highlight-color: transparent;
+}
+.venue-card-close:active { background: rgba(255,255,255,0.18); }
+
+/* ── TOAST ── */
+#toast {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom) + 20px);
+  left: 50%; transform: translateX(-50%) translateY(8px);
+  background: rgba(12,15,30,0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 10px 20px;
+  font-size: 14px; color: #fff;
+  z-index: 500; pointer-events: none; opacity: 0;
+  transition: opacity .25s, transform .25s;
+  white-space: nowrap; max-width: calc(100vw - 32px);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Rotation hint */
+#rotHint {
+  bottom: calc(env(safe-area-inset-bottom) + 20px) !important;
+}
 </style>
 </head>
 <body>
@@ -640,6 +690,14 @@ function openVenueCard(venue) {
   currentVenue = venue;
   updateVenueCard(venue);
   document.getElementById('venueCard').classList.add('visible');
+  // Smooth zoom to venue, offset center slightly right to leave room for card
+  map.flyTo({
+    center: [venue.lng, venue.lat],
+    zoom: 18,
+    duration: 800,
+    offset: [-80, 0],
+    essential: true,
+  });
 }
 
 function updateVenueCard(venue) {
@@ -670,24 +728,63 @@ function updateVenueCard(venue) {
 }
 
 // Close card
-document.getElementById('venueClose').addEventListener('click', () => {
+document.getElementById('venueClose').addEventListener('click', (e) => {
+  e.stopPropagation();
   document.getElementById('venueCard').classList.remove('visible');
   currentVenue = null;
 });
 
 // Close on map click
 map.on('click', () => {
+  // Only close card if clicking the map itself, not the card
+  // (card clicks are stopped by the card's own listener below)
   document.getElementById('venueCard').classList.remove('visible');
   currentVenue = null;
 });
 
+// Prevent map click from firing when clicking inside the card
+document.getElementById('venueCard').addEventListener('click', e => {
+  e.stopPropagation();
+});
+
 // Markers initialized in style.load above
+
+
+// Swipe down to close venue card
+(function() {
+  const card = document.getElementById('venueCard');
+  let startY = 0, isDragging = false;
+  card.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY;
+    isDragging = true;
+  }, { passive: true });
+  card.addEventListener('touchmove', e => {
+    if (!isDragging) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 0) {
+      card.style.transform = `translateY(${dy}px)`;
+      e.preventDefault();
+    }
+  }, { passive: false });
+  card.addEventListener('touchend', e => {
+    isDragging = false;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (dy > 80) {
+      card.style.transform = '';
+      card.classList.remove('visible');
+      currentVenue = null;
+    } else {
+      card.style.transform = '';
+    }
+  }, { passive: true });
+})();
 
 </script>
 
 <!-- Venue card -->
 <div class="venue-card" id="venueCard">
-  <button class="venue-card-close" id="venueClose">×</button>
+  <div class="card-handle"></div>
+  <button class="venue-card-close" id="venueClose">✕</button>
   <div class="venue-card-header">
     <div class="venue-card-status">
       <div class="status-dot sun" id="vcDot"></div>
