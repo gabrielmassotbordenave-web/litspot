@@ -198,30 +198,30 @@ html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; 
 
 /* ── VENUE PINS ── */
 .venue-pin {
-  width: 44px; height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
   cursor: pointer;
   border: 3px solid #fff;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
-  transition: transform .2s;
-  position: relative;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  /* NO position:relative, NO transform on idle — causes anchor drift */
+  flex-shrink: 0;
 }
-.venue-pin:hover { transform: scale(1.12); }
-.venue-pin.in-sun { background: #FFB800; animation: pinPulse 2s ease-in-out infinite; }
+.venue-pin:hover { outline: 3px solid rgba(255,255,255,0.5); }
+.venue-pin.in-sun {
+  background: #FFB800;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 4px rgba(255,184,0,0.3);
+  animation: pinPulse 2s ease-in-out infinite;
+}
 .venue-pin.in-shade { background: #4a5a8a; }
-.venue-pin .pin-badge {
-  position: absolute; top: -4px; right: -4px;
-  width: 16px; height: 16px; border-radius: 50%;
-  border: 2px solid #fff; font-size: 8px;
-  display: flex; align-items: center; justify-content: center;
-}
-.pin-badge.sun { background: #FFB800; }
-.pin-badge.shade { background: #4a5a8a; }
+/* No .pin-badge — removed, caused anchor issues */
 @keyframes pinPulse {
-  0%,100% { box-shadow: 0 2px 12px rgba(0,0,0,0.25), 0 0 0 0 rgba(255,184,0,0.4); }
-  50% { box-shadow: 0 2px 12px rgba(0,0,0,0.25), 0 0 0 10px rgba(255,184,0,0); }
+  0%,100% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 4px rgba(255,184,0,0.3); }
+  50% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 8px rgba(255,184,0,0); }
 }
 
 /* ── VENUE CARD ── */
@@ -607,13 +607,9 @@ function addVenueMarkers() {
   VENUES.forEach(venue => {
     const el = document.createElement('div');
     el.className = 'venue-pin ' + (venueInSun(venue) ? 'in-sun' : 'in-shade');
-    el.innerHTML = venue.emoji;
+    el.textContent = venue.emoji;
 
-    const badge = document.createElement('div');
-    badge.className = 'pin-badge ' + (venueInSun(venue) ? 'sun' : 'shade');
-    badge.textContent = venueInSun(venue) ? '☀' : '●';
-    el.appendChild(badge);
-
+    // anchor:'center' + explicit fixed size = pin stays locked on coordinates
     const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
       .setLngLat([venue.lng, venue.lat])
       .addTo(map);
@@ -634,13 +630,7 @@ function updateVenuePins() {
     if (!el) return;
     const inSun = venueInSun(venue);
     el.className = 'venue-pin ' + (inSun ? 'in-sun' : 'in-shade');
-    const badge = el.querySelector('.pin-badge');
-    if (badge) {
-      badge.className = 'pin-badge ' + (inSun ? 'sun' : 'shade');
-      badge.textContent = inSun ? '☀' : '●';
-    }
   });
-  // Update card if open
   if (currentVenue) updateVenueCard(currentVenue);
 }
 
