@@ -1,1 +1,422 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LitSpot — Find Sunny Spots & Sun-Lit Terraces Near You</title>
 
+<!-- SEO -->
+<meta name="description" content="LitSpot shows you exactly where the sun shines right now — and all day. See real building shadows on a live map. Find the sunniest terrace, park or street near you.">
+<meta name="keywords" content="sunny spot, find sun, sunny terrace, shadow map, where is the sun, sun position map, sunniest place, terrace in the sun, building shadows">
+<meta name="author" content="LitSpot">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://litspot.app/">
+
+<!-- Open Graph (réseaux sociaux) -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://litspot.app/">
+<meta property="og:title" content="LitSpot — Find Sunny Terraces Near You">
+<meta property="og:description" content="Real-time shadow map with 3D buildings. See where the sun shines, block by block, any time of day.">
+<meta property="og:image" content="https://litspot.app/og-image.jpg">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LitSpot — Find Sunny Terraces Near You">
+<meta name="twitter:description" content="Real-time shadow map with 3D buildings. See where the sun shines, block by block.">
+<meta name="twitter:image" content="https://litspot.app/og-image.jpg">
+
+<!-- Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "LitSpot",
+  "url": "https://litspot.app",
+  "description": "Real-time sun and shadow map for finding sunny terraces and outdoor spots, using 3D building data and precise solar position calculations.",
+  "applicationCategory": "TravelApplication",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "featureList": [
+    "Real-time building shadow simulation",
+    "Precise solar position calculation",
+    "3D building map",
+    "Time-of-day slider",
+    "Location search"
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
+<link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
+<script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+<style>
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; font-family: 'Outfit', sans-serif; }
+#map { position: absolute; inset: 0; }
+
+/* Mapbox controls */
+.mapboxgl-ctrl-group { background: rgba(255,255,255,0.92) !important; border: 1px solid rgba(0,0,0,0.08) !important; }
+.mapboxgl-ctrl-attrib { font-size: 9px !important; }
+
+/* ── SEARCH BAR ── */
+.top-bar {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 100; display: flex; gap: 10px; align-items: center;
+  width: calc(100vw - 32px); max-width: 480px;
+}
+.search-wrap { position: relative; flex: 1; }
+#searchInput {
+  width: 100%; background: rgba(255,255,255,0.96);
+  border: 1.5px solid rgba(0,0,0,0.1); border-radius: 14px;
+  padding: 12px 44px 12px 16px; font-family: 'Outfit', sans-serif;
+  font-size: 15px; color: #1a1a2e; outline: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  transition: border-color .2s, box-shadow .2s;
+}
+#searchInput::placeholder { color: rgba(0,0,0,0.3); }
+#searchInput:focus { border-color: #FFB800; box-shadow: 0 0 0 3px rgba(255,184,0,0.18); }
+.s-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; pointer-events: none; opacity: .35; }
+#spinner { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; border: 2px solid rgba(0,0,0,0.08); border-top-color: #FFB800; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+@keyframes fadeHint { 0%{opacity:0} 20%{opacity:1} 70%{opacity:1} 100%{opacity:0} }
+#ac-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: rgba(255,255,255,0.98); border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; overflow: hidden; box-shadow: 0 12px 36px rgba(0,0,0,0.14); z-index: 500; display: none; }
+.ac-item { padding: 11px 16px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.04); transition: background .15s; }
+.ac-item:last-child { border-bottom: none; }
+.ac-item:hover { background: rgba(255,184,0,0.07); }
+.ac-name { font-size: 14px; font-weight: 500; color: #1a1a2e; }
+.ac-addr { font-size: 11px; color: rgba(0,0,0,0.35); margin-top: 2px; }
+.geo-btn {
+  width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+  background: rgba(255,255,255,0.96); border: 1.5px solid rgba(0,0,0,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; cursor: pointer; transition: all .2s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+.geo-btn:hover { background: rgba(255,184,0,0.1); border-color: rgba(255,184,0,0.4); }
+
+/* ── TIME PILL (vertical, left side) ── */
+.time-pill {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  background: rgba(12, 15, 30, 0.88);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 22px;
+  padding: 16px 12px;
+  backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  min-width: 70px;
+}
+
+.pill-time {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  text-align: center;
+}
+
+.pill-status {
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+}
+
+/* Vertical slider */
+.slider-track {
+  position: relative;
+  width: 4px;
+  height: 140px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.slider-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #FFB800;
+  border-radius: 2px;
+  transition: height .05s;
+}
+.slider-thumb {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 16px;
+  background: radial-gradient(circle at 38% 38%, #ffe07a, #FFB800);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255,184,0,0.3), 0 0 10px rgba(255,184,0,0.5);
+  cursor: grab;
+  transition: bottom .05s;
+}
+.slider-thumb:active { cursor: grabbing; }
+
+.pill-sun {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  text-align: center;
+  line-height: 1.4;
+}
+.pill-sun b { color: rgba(255,255,255,0.75); font-weight: 500; display: block; }
+
+/* ── TOAST ── */
+#toast {
+  position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(8px);
+  background: rgba(12,15,30,0.95); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 9px 18px; font-size: 13px; color: #fff;
+  z-index: 200; pointer-events: none; opacity: 0;
+  transition: opacity .25s, transform .25s; white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Search -->
+<div class="top-bar">
+  <div class="search-wrap">
+    <input id="searchInput" type="text" placeholder="Bar, restaurant, address…" autocomplete="off" spellcheck="false">
+    <div class="s-icon">🔍</div>
+    <div id="spinner"></div>
+    <div id="ac-list"></div>
+  </div>
+  <button class="geo-btn" id="geoBtn">🎯</button>
+</div>
+
+<!-- Time pill -->
+<div class="time-pill">
+  <div class="pill-time" id="timeTxt">12:00</div>
+  <div class="pill-status" id="statusEmoji">☀️</div>
+  <div class="slider-track" id="sliderTrack">
+    <div class="slider-fill" id="sliderFill"></div>
+    <div class="slider-thumb" id="sliderThumb"></div>
+  </div>
+  <div class="pill-sun">
+    🌅 <b id="rise">–</b>
+    🌇 <b id="sset">–</b>
+  </div>
+</div>
+
+
+<!-- Rotation hint -->
+<div id="rotHint" style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(12,15,30,0.82);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:7px 14px;font-size:11px;color:rgba(255,255,255,0.55);pointer-events:none;animation:fadeHint 4s ease 1s both;white-space:nowrap">
+  🖱️ Right-click + drag to rotate · 👌 Two fingers on mobile
+</div>
+<div id="toast"></div>
+
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
+
+let lat = 45.5088, lng = -73.5878;
+let mins = new Date().getHours() * 60 + new Date().getMinutes();
+let toastTmt, acTimeout, dragging = false;
+
+// ── MAP
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/standard',
+  center: [lng, lat],
+  zoom: 16,
+  pitch: 45,
+  antialias: true,
+});
+map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
+
+// ── SOLAR
+function getDate() { const d = new Date(); d.setHours(~~(mins/60), mins%60, 0, 0); return d; }
+function sunPos()   { return SunCalc.getPosition(getDate(), lat, lng); }
+function sunTimes() { return SunCalc.getTimes(new Date(), lat, lng); }
+function fmt(d)     { return (!d||isNaN(d)) ? '–' : d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}); }
+function toDeg(r)   { return r * 180 / Math.PI; }
+
+// ── SUN LIGHT
+function updateSunLight() {
+  if (!map.isStyleLoaded()) return;
+  const pos = sunPos(), alt = toDeg(pos.altitude), az = toDeg(pos.azimuth);
+  const mapboxAz = ((-90 - az) % 360 + 360) % 360;
+  const polar = Math.max(2, Math.min(90, 90 - alt));
+
+  if (alt < -6) {
+    map.setLights([
+      { id: 'ambient', type: 'ambient', properties: { color: '#0a1535', intensity: 0.3 } },
+      { id: 'sun', type: 'directional', properties: { color: '#0a1535', intensity: 0, direction: [mapboxAz, polar], 'shadow-intensity': 0 } },
+    ]);
+  } else if (alt <= 0) {
+    const t = (alt + 6) / 6;
+    map.setLights([
+      { id: 'ambient', type: 'ambient', properties: { color: '#1a2040', intensity: 0.4 } },
+      { id: 'sun', type: 'directional', properties: { color: `hsl(25,60%,${40+t*20}%)`, intensity: 0.3*t, direction: [mapboxAz, polar], 'shadow-intensity': 0.3*t } },
+    ]);
+  } else if (alt < 15) {
+    const t = alt / 15;
+    map.setLights([
+      { id: 'ambient', type: 'ambient', properties: { color: '#fff3d0', intensity: 0.4 } },
+      { id: 'sun', type: 'directional', properties: { color: `hsl(${30+t*10},${90-t*20}%,${65+t*10}%)`, intensity: 0.5+t*0.3, direction: [mapboxAz, polar], 'shadow-intensity': 0.85 } },
+    ]);
+  } else {
+    map.setLights([
+      { id: 'ambient', type: 'ambient', properties: { color: '#fff8f0', intensity: 0.35 } },
+      { id: 'sun', type: 'directional', properties: { color: '#ffffff', intensity: 0.85, direction: [mapboxAz, polar], 'shadow-intensity': 1.0 } },
+    ]);
+  }
+}
+
+// ── SLIDER (custom vertical — plus fiable que input[type=range] vertical)
+const track = document.getElementById('sliderTrack');
+const fill  = document.getElementById('sliderFill');
+const thumb = document.getElementById('sliderThumb');
+
+function updateSliderUI() {
+  const pct = mins / 1439; // 0=00h, 1=23h59
+  const trackH = track.offsetHeight;
+  const thumbH = thumb.offsetHeight;
+  const pos = (1 - pct) * (trackH - thumbH); // 0h en bas, 23h en haut
+  thumb.style.top = pos + 'px';
+  fill.style.height = (pct * trackH) + 'px';
+}
+
+function pxToMins(clientY) {
+  const rect = track.getBoundingClientRect();
+  const pct = 1 - Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+  return Math.round(pct * 1439);
+}
+
+track.addEventListener('mousedown', e => {
+  dragging = true;
+  mins = pxToMins(e.clientY);
+  updateSliderUI(); go();
+  e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  mins = pxToMins(e.clientY);
+  updateSliderUI(); go();
+});
+document.addEventListener('mouseup', () => { dragging = false; });
+
+// Touch
+track.addEventListener('touchstart', e => {
+  dragging = true;
+  mins = pxToMins(e.touches[0].clientY);
+  updateSliderUI(); go();
+  e.preventDefault();
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+  if (!dragging) return;
+  mins = pxToMins(e.touches[0].clientY);
+  updateSliderUI(); go();
+}, { passive: false });
+document.addEventListener('touchend', () => { dragging = false; });
+
+// ── STATUS
+function updateStatus() {
+  const alt = toDeg(sunPos().altitude);
+  const emoji = document.getElementById('statusEmoji');
+  if      (alt < -6)  emoji.textContent = '🌙';
+  else if (alt <= 0)  emoji.textContent = '🌅';
+  else if (alt < 10)  emoji.textContent = '🌤️';
+  else                emoji.textContent = '☀️';
+
+  const h = String(~~(mins/60)).padStart(2,'0');
+  const m = String(mins%60).padStart(2,'0');
+  document.getElementById('timeTxt').textContent = h + ':' + m;
+  const t = sunTimes();
+  document.getElementById('rise').textContent = fmt(t.sunrise);
+  document.getElementById('sset').textContent = fmt(t.sunset);
+}
+
+function go() { updateStatus(); updateSunLight(); }
+
+// ── MAP LOAD
+map.on('style.load', () => {
+  map.setConfigProperty('basemap', 'show3dObjects', true);
+  updateSliderUI();
+  go();
+});
+
+// ── GEOLOC
+document.getElementById('geoBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) return showToast('Not supported');
+  showToast('📡 Locating…');
+  navigator.geolocation.getCurrentPosition(p => {
+    lat = p.coords.latitude; lng = p.coords.longitude;
+    map.flyTo({ center: [lng, lat], zoom: 16, duration: 1200 });
+    go(); showToast('🎯 Location found!');
+  }, () => showToast('❌ Access denied'));
+});
+
+map.on('click', e => { lng = e.lngLat.lng; lat = e.lngLat.lat; showToast('📍 Location updated'); });
+
+// ── SEARCH
+const si=document.getElementById('searchInput'),acList=document.getElementById('ac-list'),spn=document.getElementById('spinner'),sico=document.querySelector('.s-icon');
+si.addEventListener('input',()=>{
+  clearTimeout(acTimeout); const q=si.value.trim();
+  if(q.length<2){acList.style.display='none';return;}
+  acTimeout=setTimeout(()=>fetchPlaces(q),300);
+});
+async function fetchPlaces(q){
+  spn.style.display='block';sico.style.display='none';
+  try{
+    const url=`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${mapboxgl.accessToken}&language=fr&limit=5&proximity=${lng},${lat}`;
+    const res=await fetch(url);const data=await res.json();
+    renderAC(data.features||[]);
+  }catch{acList.style.display='none';}
+  finally{spn.style.display='none';sico.style.display='block';}
+}
+function renderAC(features){
+  if(!features.length){acList.style.display='none';return;}
+  acList.innerHTML='';
+  features.forEach(f=>{
+    const item=document.createElement('div');item.className='ac-item';
+    const name=f.text||f.place_name.split(',')[0];
+    const addr=f.place_name.split(',').slice(1,3).join(', ').trim();
+    item.innerHTML=`<div class="ac-name">${name}</div><div class="ac-addr">${addr}</div>`;
+    item.addEventListener('click',()=>{
+      lng=f.center[0];lat=f.center[1];si.value=name;acList.style.display='none';
+      map.flyTo({center:[lng,lat],zoom:17,duration:1000});
+      go();showToast('📍 '+name);
+    });
+    acList.appendChild(item);
+  });
+  acList.style.display='block';
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))acList.style.display='none';});
+si.addEventListener('keydown',async e=>{
+  if(e.key!=='Enter')return;acList.style.display='none';
+  await fetchPlaces(si.value);const f=acList.querySelector('.ac-item');if(f)f.click();
+});
+
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTmt);toastTmt=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// Live clock
+setInterval(()=>{
+  const n=new Date(),lm=n.getHours()*60+n.getMinutes();
+  if(!dragging&&Math.abs(lm-mins)<=1){mins=lm;updateSliderUI();go();}
+},60000);
+
+window.addEventListener('resize', updateSliderUI);
+</script>
+</body>
+</html>
