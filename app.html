@@ -257,7 +257,7 @@ html, body {
 /* drag handle */
 .card-handle {
   width: 36px; height: 4px;
-  background: rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.12);
   border-radius: 2px;
   margin: 12px auto 0;
 }
@@ -269,8 +269,8 @@ html, body {
 }
 .venue-card-photo-placeholder { display: none; }
 .venue-card-header {
-  padding: 12px 20px 14px;
-  border-bottom: 1px solid rgba(255,240,220,0.08);
+  padding: 10px 20px 10px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 /* When photo present, overlay name on image */
 .venue-card.has-photo .venue-card-header {
@@ -303,16 +303,17 @@ html, body {
   font-family: 'Cormorant Garamond', serif;
   font-size: 22px; font-weight: 600; color: #1a0e08; margin-bottom: 2px;
 }
-.venue-type { font-size: 12px; color: rgba(255,255,255,0.4); }
+.venue-type { font-size: 13px; color: rgba(28,20,16,0.55); font-weight: 400; }
 
 .venue-card-body { padding: 10px 20px 14px; }
 .sun-schedule {
-  background: rgba(255,255,255,0.04);
-  border-radius: 12px; padding: 10px 14px; margin-bottom: 14px;
+  background: #FFF3E0;
+  border: 1px solid rgba(232,137,12,0.15);
+  border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
 }
 .sun-schedule-title {
-  font-size: 10px; color: rgba(255,230,200,0.4);
-  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
+  font-size: 10px; color: rgba(28,20,16,0.5);
+  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; font-weight: 600;
 }
 .sun-slots { display: flex; flex-direction: column; gap: 10px; }
 .sun-slot { display: flex; flex-direction: column; gap: 6px; }
@@ -322,10 +323,10 @@ html, body {
 .slot-time-label {
   font-size: 13px; font-weight: 600; color: #E8890C;
 }
-.slot-arrow { font-size: 11px; color: rgba(255,255,255,0.3); }
+.slot-arrow { font-size: 11px; color: rgba(28,20,16,0.25); }
 .slot-bar-wrap {
   position: relative; height: 6px; border-radius: 3px;
-  background: rgba(255,240,220,0.1);
+  background: rgba(28,20,16,0.08);
 }
 .slot-fill {
   position: absolute; top: 0; height: 100%;
@@ -337,7 +338,7 @@ html, body {
 }
 .slot-day-labels {
   display: flex; justify-content: space-between;
-  font-size: 9px; color: rgba(255,255,255,0.2);
+  font-size: 9px; color: rgba(28,20,16,0.45);
   margin-top: 2px;
 }
 
@@ -351,11 +352,13 @@ html, body {
   border: none;
 }
 .btn-directions {
-  background: rgba(255,240,220,0.1);
-  border: 1px solid rgba(255,240,220,0.12);
-  color: rgba(255,230,200,0.8);
+  background: #f5f0eb;
+  border: 1.5px solid rgba(0,0,0,0.12);
+  color: rgba(28,20,16,0.8);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
 }
-.btn-directions:active { background: rgba(255,255,255,0.14); }
+.btn-directions:active { background: #ece6df; }
 .btn-reserve { background: #E8890C; color: #0d1117; }
 .btn-reserve:active { background: #FFA928; }
 
