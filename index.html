@@ -553,7 +553,9 @@ async function trackClick(venueId, clickType) {
   } catch (e) {
     console.error('Erreur de tracking:', e);
   }
-} = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
+}
+
+mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
 
 let lat = 45.5088, lng = -73.5878;
 let userLat = null, userLng = null;
