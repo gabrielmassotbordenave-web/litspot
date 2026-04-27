@@ -270,9 +270,30 @@ html, body {
   margin: 12px auto 0;
 }
 
+.venue-card-photo {
+  width: 100%; height: 140px;
+  object-fit: cover;
+  display: block;
+}
+.venue-card-photo-placeholder { display: none; }
 .venue-card-header {
   padding: 12px 20px 14px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+/* When photo present, overlay name on image */
+.venue-card.has-photo .venue-card-header {
+  position: relative;
+  padding: 0;
+  border-bottom: none;
+}
+.venue-card.has-photo .venue-card-header-inner {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 12px 20px 14px;
+  background: linear-gradient(transparent, rgba(12,15,30,0.95));
+}
+.venue-card:not(.has-photo) .venue-card-header-inner {
+  padding: 12px 20px 14px;
 }
 .venue-card-status {
   display: flex; align-items: center; gap: 8px;
@@ -464,6 +485,7 @@ async function loadVenues() {
       reserveUrl: v.reserve_url,
       directionsUrl: v.directions_url,
       sunWindows: v.sun_windows,
+      photoUrl: v.photo_url || null,
       active: v.active,
     }));
   } catch (e) {
@@ -856,6 +878,19 @@ function updateVenueCard(venue) {
   document.getElementById('vcName').textContent = venue.name;
   document.getElementById('vcType').textContent = venue.type;
 
+  // Photo — show if available, hide if not
+  const card = document.getElementById('venueCard');
+  const photo = document.getElementById('vcPhoto');
+  if (venue.photoUrl) {
+    photo.src = venue.photoUrl;
+    photo.style.display = 'block';
+    card.classList.add('has-photo');
+  } else {
+    photo.src = '';
+    photo.style.display = 'none';
+    card.classList.remove('has-photo');
+  }
+
   const dot = document.getElementById('vcDot');
   const statusTxt = document.getElementById('vcStatus');
   dot.className = 'status-dot ' + (inSun ? 'sun' : 'shade');
@@ -949,14 +984,17 @@ window.addEventListener('load', () => {
 <!-- Venue card -->
 <div class="venue-card" id="venueCard">
   <div class="card-handle"></div>
-  <button class="venue-card-close" onclick="document.getElementById('venueCard').classList.remove('visible');document.getElementById('cardBackdrop').classList.remove('visible');currentVenue=null;" style="z-index:9999;position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
-  <div class="venue-card-header">
-    <div class="venue-card-status">
-      <div class="status-dot sun" id="vcDot"></div>
-      <span class="venue-status-txt sun" id="vcStatus">☀️ In the sun now</span>
+  <button class="venue-card-close" style="z-index:9999;position:absolute;top:14px;right:14px;"  onclick="document.getElementById('venueCard').classList.remove('visible');document.getElementById('cardBackdrop').classList.remove('visible');currentVenue=null;" style="z-index:9999;position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+  <div class="venue-card-header" id="vcHeader">
+    <img id="vcPhoto" class="venue-card-photo venue-card-photo-placeholder" src="" alt="">
+    <div class="venue-card-header-inner">
+      <div class="venue-card-status">
+        <div class="status-dot sun" id="vcDot"></div>
+        <span class="venue-status-txt sun" id="vcStatus">☀️ In the sun now</span>
+      </div>
+      <div class="venue-name" id="vcName">–</div>
+      <div class="venue-type" id="vcType">–</div>
     </div>
-    <div class="venue-name" id="vcName">–</div>
-    <div class="venue-type" id="vcType">–</div>
   </div>
   <div class="venue-card-body">
     <div class="sun-schedule">
