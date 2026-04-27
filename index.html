@@ -43,7 +43,7 @@
 }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Playfair+Display:wght@600&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
@@ -537,7 +537,23 @@ async function loadVenues() {
   }
 }
 
-mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
+// Enregistre les statistiques de clics dans Supabase
+async function trackClick(venueId, clickType) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/venue_clicks`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ venue_id: venueId, click_type: clickType })
+    });
+  } catch (e) {
+    console.error('Erreur de tracking:', e);
+  }
+} = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
 
 let lat = 45.5088, lng = -73.5878;
 let userLat = null, userLng = null;
@@ -922,6 +938,7 @@ function closeVenueCard() {
 function openVenueCard(venue) {
   currentVenue = venue;
   updateVenueCard(venue);
+  trackClick(venue.id, 'card_view');
   document.getElementById('venueCard').classList.add('visible');
   document.getElementById('cardBackdrop').classList.add('visible');
   map.flyTo({
@@ -973,8 +990,14 @@ function updateVenueCard(venue) {
     </div>
   `).join('');
 
-  document.getElementById('vcDir').onclick = () => window.open(venue.directionsUrl, '_blank');
-  document.getElementById('vcRes').onclick = () => window.open(venue.reserveUrl, '_blank');
+  document.getElementById('vcDir').onclick = () => {
+    trackClick(venue.id, 'directions_click');
+    window.open(venue.directionsUrl, '_blank');
+  };
+  document.getElementById('vcRes').onclick = () => {
+    trackClick(venue.id, 'reserve_click');
+    window.open(venue.reserveUrl, '_blank');
+  };
 }
 
 (function() {
@@ -1030,7 +1053,7 @@ map.on('idle', () => {
 <div id="cardBackdrop"></div>
 <div class="venue-card" id="venueCard">
   <div class="card-handle"></div>
-  <button class="venue-card-close" style="z-index:9999;position:absolute;top:14px;right:14px;"  onclick="document.getElementById('venueCard').classList.remove('visible');document.getElementById('cardBackdrop').classList.remove('visible');currentVenue=null;" style="z-index:9999;position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+  <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
   <div class="venue-card-header" id="vcHeader">
     <img id="vcPhoto" class="venue-card-photo venue-card-photo-placeholder" src="" alt="">
     <div class="venue-card-header-inner">
