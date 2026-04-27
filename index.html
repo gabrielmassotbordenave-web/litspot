@@ -814,27 +814,36 @@ const venueMarkers = {};
 
 function addVenueMarkers() {
   VENUES.forEach(venue => {
-    // Wrapper — fixed 44x44, Mapbox anchors on this, never changes size
-    const wrap = document.createElement('div');
     const inSun = venueInSun(venue);
-    wrap.className = 'venue-pin-wrap ' + (inSun ? 'in-sun' : 'in-shade');
-
-    // Inner pin circle
-    const el = document.createElement('div');
-    el.className = 'venue-pin ' + (inSun ? 'in-sun' : 'in-shade');
-    el.textContent = venue.emoji;
-    wrap.appendChild(el);
-
-    const marker = new mapboxgl.Marker({ element: wrap, anchor: 'center' })
+    
+    // Use native Mapbox marker — most stable anchoring
+    const marker = new mapboxgl.Marker({
+      color: inSun ? '#FFB800' : '#6b88b5',
+      scale: 0.9,
+    })
       .setLngLat([venue.lng, venue.lat])
       .addTo(map);
 
-    wrap.addEventListener('click', e => {
+    // Add emoji label on top
+    const el = marker.getElement();
+    const label = document.createElement('div');
+    label.style.cssText = `
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -70%);
+      font-size: 14px;
+      pointer-events: none;
+    `;
+    label.textContent = venue.emoji;
+    el.appendChild(label);
+
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', e => {
       e.stopPropagation();
       openVenueCard(venue);
     });
 
-    venueMarkers[venue.id] = { marker, el, wrap };
+    venueMarkers[venue.id] = { marker, el };
   });
 }
 
@@ -844,8 +853,23 @@ function updateVenuePins() {
     const v = venueMarkers[venue.id];
     if (!v) return;
     const inSun = venueInSun(venue);
-    v.el.className = 'venue-pin ' + (inSun ? 'in-sun' : 'in-shade');
-    v.wrap.className = 'venue-pin-wrap ' + (inSun ? 'in-sun' : 'in-shade');
+    // Update marker color by replacing it
+    const lngLat = v.marker.getLngLat();
+    v.marker.remove();
+    const newMarker = new mapboxgl.Marker({
+      color: inSun ? '#FFB800' : '#6b88b5',
+      scale: 0.9,
+    })
+      .setLngLat(lngLat)
+      .addTo(map);
+    const el = newMarker.getElement();
+    const label = document.createElement('div');
+    label.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-70%);font-size:14px;pointer-events:none;';
+    label.textContent = venue.emoji;
+    el.appendChild(label);
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', e => { e.stopPropagation(); openVenueCard(venue); });
+    venueMarkers[venue.id] = { marker: newMarker, el };
   });
   if (currentVenue) updateVenueCard(currentVenue);
 }
