@@ -401,9 +401,23 @@ html, body {
 
 
 <!-- Rotation hint -->
-<div id="rotHint" style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(12,15,30,0.82);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:7px 14px;font-size:11px;color:rgba(255,255,255,0.55);pointer-events:none;animation:fadeHint 4s ease 1s both;white-space:nowrap">
-  🖱️ Right-click + drag to rotate · 👌 Two fingers on mobile
-</div>
+<div id="rotHint" style="
+  position:absolute;
+  bottom:32px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:100;
+  background:rgba(12,15,30,0.82);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px;
+  padding:8px 16px;
+  font-size:12px;
+  color:rgba(255,255,255,0.6);
+  pointer-events:none;
+  white-space:nowrap;
+  opacity:0;
+  transition:opacity 0.5s;
+">👆 Two fingers to rotate · Pinch to zoom</div>
 <div id="toast"></div>
 
 <script>
@@ -434,7 +448,12 @@ if (navigator.geolocation) {
 map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
 
 // ── SOLAR
-function getDate() { const d = new Date(); d.setHours(~~(mins/60), mins%60, 0, 0); return d; }
+function getDate() {
+  const d = new Date();
+  d.setFullYear(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+  d.setHours(~~(mins/60), mins%60, 0, 0);
+  return d;
+}
 function sunPos()   { return SunCalc.getPosition(getDate(), lat, lng); }
 function sunTimes() { return SunCalc.getTimes(new Date(), lat, lng); }
 function fmt(d)     { return (!d||isNaN(d)) ? '–' : d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}); }
@@ -462,12 +481,12 @@ function updateSunLight() {
     const t = alt / 15;
     map.setLights([
       { id: 'ambient', type: 'ambient', properties: { color: '#fff3d0', intensity: 0.4 } },
-      { id: 'sun', type: 'directional', properties: { color: `hsl(${30+t*10},${90-t*20}%,${65+t*10}%)`, intensity: 0.5+t*0.3, direction: [mapboxAz, polar], 'shadow-intensity': 0.85 } },
+      { id: 'sun', type: 'directional', properties: { color: `hsl(${30+t*10},${90-t*20}%,${65+t*10}%)`, intensity: 0.7+t*0.3, direction: [mapboxAz, polar], 'shadow-intensity': 1.0 } },
     ]);
   } else {
     map.setLights([
-      { id: 'ambient', type: 'ambient', properties: { color: '#fff8f0', intensity: 0.35 } },
-      { id: 'sun', type: 'directional', properties: { color: '#ffffff', intensity: 0.85, direction: [mapboxAz, polar], 'shadow-intensity': 1.0 } },
+      { id: 'ambient', type: 'ambient', properties: { color: '#fff8f0', intensity: 0.25 } },
+      { id: 'sun', type: 'directional', properties: { color: '#ffffff', intensity: 1.0, direction: [mapboxAz, polar], 'shadow-intensity': 1.0 } },
     ]);
   }
 }
@@ -840,6 +859,16 @@ document.getElementById('cardBackdrop').addEventListener('touchend', (e) => {
   e.preventDefault();
   closeVenueCard();
 });
+
+// Show rotation hint on load then fade out
+window.addEventListener('load', () => {
+  const hint = document.getElementById('rotHint');
+  // Fade in after 1s
+  setTimeout(() => { hint.style.opacity = '1'; }, 1000);
+  // Fade out after 4s
+  setTimeout(() => { hint.style.opacity = '0'; }, 4000);
+});
+
 </script>
 
 <div id="cardBackdrop"></div>
