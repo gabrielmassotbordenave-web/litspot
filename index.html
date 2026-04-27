@@ -751,6 +751,15 @@ function go() {
 // ── MAP LOAD
 map.on('style.load', async () => {
   map.setConfigProperty('basemap', 'show3dObjects', true);
+  // --- AJOUT POUR LA PRÉCISION DU RELIEF ---
+  map.addSource('mapbox-dem', {
+    'type': 'raster-dem',
+    'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+    'tileSize': 512,
+    'maxzoom': 14
+  });
+  // On active le terrain 3D
+  map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1 });
   updateSliderUI();
   go();
   // Load venues from Supabase then add markers
