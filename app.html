@@ -365,14 +365,14 @@ html, body {
 .venue-card-close {
   position: absolute; top: 14px; right: 14px;
   width: 36px; height: 36px; border-radius: 50%;
-  background: rgba(255,240,220,0.14); border: none;
-  color: #FFF5E6; font-size: 16px; line-height: 1;
+  background: rgba(28,20,16,0.12); border: none;
+  color: #1C1410; font-size: 16px; font-weight: 700; line-height: 1;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; z-index: 2000;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.venue-card-close:active { background: rgba(255,255,255,0.25); }
+.venue-card-close:active { background: rgba(28,20,16,0.2); }
 
 /* ── CARD BACKDROP ── */
 #cardBackdrop {
@@ -1019,7 +1019,7 @@ map.on('idle', () => {
 <!-- Venue card -->
 <div class="venue-card" id="venueCard">
   <div class="card-handle"></div>
-  <button class="venue-card-close" style="z-index:9999;position:absolute;top:14px;right:14px;"  onclick="document.getElementById('venueCard').classList.remove('visible');document.getElementById('cardBackdrop').classList.remove('visible');currentVenue=null;" style="z-index:9999;position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+  <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
   <div class="venue-card-header" id="vcHeader">
     <img id="vcPhoto" class="venue-card-photo venue-card-photo-placeholder" src="" alt="">
     <div class="venue-card-header-inner">
