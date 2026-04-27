@@ -307,11 +307,7 @@ footer {
 @media (max-width: 640px) {
   nav { padding: 14px 20px; }
   .nav-cta { display: none; }
-  .nav-right .nav-link:not(.nav-partner) { display: none; }
-  .nav-partner {
-    font-size: 12px !important;
-    padding: 7px 14px !important;
-  }
+  .nav-right { display: none; }
   .usecases-grid { grid-template-columns: 1fr; }
   .how-step:not(:last-child)::after { display: none; }
   .how-steps { gap: 32px; }
@@ -337,12 +333,15 @@ footer {
 .btn-ghost:hover { border-color: var(--sun); color: var(--sun); transform: translateY(-2px); }
 
 .nav-partner {
-  color: var(--sun) !important;
+  color: var(--sun);
   font-weight: 500;
+  font-size: 13px;
   border: 1.5px solid rgba(232,137,12,0.3);
   border-radius: 50px;
-  padding: 7px 16px;
+  padding: 8px 16px;
+  text-decoration: none;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 .nav-partner:hover {
   background: rgba(232,137,12,0.08);
@@ -388,7 +387,6 @@ footer {
 
 @media (max-width: 640px) {
   .b2b-inner { grid-template-columns: 1fr; gap: 40px; }
-  .nav-partner { display: none; }
 }
 </style>
 </head>
@@ -398,9 +396,10 @@ footer {
   <a href="#" class="nav-logo">Lit<em>Spot</em></a>
   <div class="nav-right">
     <a href="#comment" class="nav-link">Comment ça marche</a>
-    <a href="./partners.html" class="nav-link nav-partner">Vous êtes un établissement ?</a>
     <a href="./app.html" class="nav-cta">Ouvrir l'app ☀️</a>
   </div>
+  <!-- Always visible on mobile -->
+  <a href="./partners.html" class="nav-partner">Vous êtes un établissement ?</a>
 </nav>
 
 <!-- HERO -->
