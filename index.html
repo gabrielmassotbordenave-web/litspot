@@ -547,7 +547,7 @@ let toastTmt, acTimeout, dragging = false;
 // ── MAP (Mise à jour pour utiliser la précision OSM avec light-v11)
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/light-v11', // Style classique, plus précis
+  style: 'mapbox://styles/mapbox/standard',
   center: [lng, lat],
   zoom: 16,
   pitch: 60, // Angle accentué pour mieux voir la 3D
@@ -676,10 +676,13 @@ function go() {
   }, 120);
 }
 
-// ── MAP LOAD (Nouvelle configuration pour la précision)
+// ── MAP LOAD
 map.on('style.load', async () => {
   
-  // 1. Ajouter le relief (Topographie)
+  // 1. On désactive les modèles 3D par défaut du style Standard
+  map.setConfigProperty('basemap', 'show3dObjects', false);
+
+  // 2. On garde le relief (Topographie) pour la précision au sol
   map.addSource('mapbox-dem', {
     'type': 'raster-dem',
     'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
@@ -688,39 +691,35 @@ map.on('style.load', async () => {
   });
   map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1 });
 
-  // 2. Ajouter un beau ciel (Atmosphère)
-  map.setFog({
-    'range': [0.5, 10],
-    'color': '#fff8f0',
-    'high-color': '#245bdf',
-    'space-color': '#000000',
-    'horizon-blend': 0.1
+  // 3. On importe la source brute contenant les données OSM précises
+  map.addSource('osm-buildings', {
+    'type': 'vector',
+    'url': 'mapbox://mapbox.mapbox-streets-v8'
   });
 
-  // 3. Forcer la 3D basée sur les hauteurs exactes (OSM)
+  // 4. On dessine nos propres bâtiments avec les hauteurs exactes
   map.addLayer({
-    'id': '3d-buildings',
-    'source': 'composite',
+    'id': '3d-buildings-custom',
+    'source': 'osm-buildings',
     'source-layer': 'building',
     'filter': ['==', 'extrude', 'true'],
     'type': 'fill-extrusion',
     'minzoom': 15,
     'paint': {
-      'fill-extrusion-color': '#f2ece4', // Couleur premium épurée
+      'fill-extrusion-color': '#f2ece4', // La couleur de tes façades
       'fill-extrusion-height': ['get', 'height'],
       'fill-extrusion-base': ['get', 'min_height'],
-      'fill-extrusion-opacity': 0.95
+      'fill-extrusion-opacity': 1.0
     }
   });
 
   updateSliderUI();
   go();
   
-  // Load venues from Supabase then add markers
+  // Load venues from Supabase
   VENUES = await loadVenues();
   addVenueMarkers();
 });
-
 // ── GEOLOC
 document.getElementById('geoBtn').addEventListener('click', () => {
   if (!navigator.geolocation) return showToast('Not supported');
