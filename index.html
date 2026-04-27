@@ -300,14 +300,32 @@ html, body {
   font-size: 10px; color: rgba(255,255,255,0.35);
   text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
 }
-.sun-slots { display: flex; flex-direction: column; gap: 6px; }
-.sun-slot { display: flex; align-items: center; gap: 8px; }
-.slot-bar {
-  flex: 1; height: 4px; border-radius: 2px;
-  background: rgba(255,255,255,0.08); overflow: hidden;
+.sun-slots { display: flex; flex-direction: column; gap: 10px; }
+.sun-slot { display: flex; flex-direction: column; gap: 6px; }
+.slot-times {
+  display: flex; justify-content: space-between; align-items: center;
 }
-.slot-fill { height: 100%; border-radius: 2px; background: #FFB800; }
-.slot-time { font-size: 11px; color: rgba(255,255,255,0.5); white-space: nowrap; }
+.slot-time-label {
+  font-size: 13px; font-weight: 600; color: #FFB800;
+}
+.slot-arrow { font-size: 11px; color: rgba(255,255,255,0.3); }
+.slot-bar-wrap {
+  position: relative; height: 6px; border-radius: 3px;
+  background: rgba(255,255,255,0.08);
+}
+.slot-fill {
+  position: absolute; top: 0; height: 100%;
+  border-radius: 3px; background: #FFB800;
+}
+.slot-now-line {
+  position: absolute; top: -3px; width: 2px; height: 12px;
+  background: #fff; border-radius: 1px; opacity: 0.8;
+}
+.slot-day-labels {
+  display: flex; justify-content: space-between;
+  font-size: 9px; color: rgba(255,255,255,0.2);
+  margin-top: 2px;
+}
 
 .venue-cta { display: flex; gap: 10px; }
 .btn-directions, .btn-reserve {
@@ -715,13 +733,15 @@ function venueInSun(venue) {
 
 // Compute sun slots for display — merge windows into readable format
 function getSunSlots(venue) {
+  const DAY_START = 7, DAY_END = 21, DAY_SPAN = DAY_END - DAY_START;
+  const nowH = mins / 60;
   return venue.sunWindows.map(([start, end]) => {
-    const startStr = `${String(Math.floor(start)).padStart(2,'0')}:${start%1===0.5?'30':'00'}`;
-    const endStr   = `${String(Math.floor(end)).padStart(2,'0')}:${end%1===0.5?'30':'00'}`;
-    const totalDay = 14; // 8h to 22h window
-    const left  = ((start - 8) / totalDay) * 100;
-    const width = ((end - start) / totalDay) * 100;
-    return { startStr, endStr, left: Math.max(0,left), width: Math.min(width, 100-Math.max(0,left)) };
+    const fmt = h => `${String(Math.floor(h)).padStart(2,'0')}:${h%1===0.5?'30':'00'}`;
+    const left  = Math.max(0, ((start - DAY_START) / DAY_SPAN) * 100);
+    const width = Math.min(((end - start) / DAY_SPAN) * 100, 100 - left);
+    const nowPct = ((nowH - DAY_START) / DAY_SPAN) * 100;
+    const showNow = nowH >= DAY_START && nowH <= DAY_END;
+    return { startStr: fmt(start), endStr: fmt(end), left, width, nowPct, showNow };
   });
 }
 
@@ -800,9 +820,16 @@ function updateVenueCard(venue) {
   const slotsEl = document.getElementById('vcSlots');
   slotsEl.innerHTML = slots.map(s => `
     <div class="sun-slot">
-      <span class="slot-time">${s.startStr}</span>
-      <div class="slot-bar"><div class="slot-fill" style="margin-left:${s.left}%;width:${s.width}%"></div></div>
-      <span class="slot-time">${s.endStr}</span>
+      <div class="slot-times">
+        <span class="slot-time-label">☀️ ${s.startStr}</span>
+        <span class="slot-arrow">——</span>
+        <span class="slot-time-label">${s.endStr} ☀️</span>
+      </div>
+      <div class="slot-bar-wrap">
+        <div class="slot-fill" style="left:${s.left}%;width:${s.width}%"></div>
+        ${s.showNow ? `<div class="slot-now-line" style="left:${s.nowPct}%"></div>` : ''}
+      </div>
+      <div class="slot-day-labels"><span>7h</span><span>14h</span><span>21h</span></div>
     </div>
   `).join('');
 
@@ -886,7 +913,7 @@ window.addEventListener('load', () => {
   </div>
   <div class="venue-card-body">
     <div class="sun-schedule">
-      <div class="sun-schedule-title">☀️ Sunny today</div>
+      <div class="sun-schedule-title">Sunny hours today</div>
       <div class="sun-slots" id="vcSlots"></div>
     </div>
     <div class="venue-cta">
