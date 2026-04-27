@@ -116,6 +116,7 @@ html, body {
   display: none;
 }
 @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+@keyframes pinDrop { from { transform: translateY(-20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
 
 #ac-list {
   position: absolute;
@@ -671,6 +672,51 @@ async function fetchPlaces(q){
   finally { spn.style.display='none'; sico.style.display='block'; }
 }
 
+// Search result marker
+let searchMarker = null;
+
+function showSearchPin(lngLat, name) {
+  // Remove previous pin
+  if (searchMarker) { searchMarker.remove(); searchMarker = null; }
+
+  // Create a classic Google Maps style pin
+  const el = document.createElement('div');
+  el.innerHTML = `
+    <div style="
+      display:flex;flex-direction:column;align-items:center;
+      animation: pinDrop 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    ">
+      <div style="
+        background:#e74c3c;
+        width:32px;height:32px;border-radius:50% 50% 50% 0;
+        transform:rotate(-45deg);
+        border:3px solid #fff;
+        box-shadow:0 2px 8px rgba(0,0,0,0.3);
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <div style="
+          width:10px;height:10px;background:#fff;
+          border-radius:50%;transform:rotate(45deg);
+        "></div>
+      </div>
+      <div style="
+        width:4px;height:4px;background:rgba(0,0,0,0.2);
+        border-radius:50%;margin-top:2px;
+        filter:blur(2px);
+      "></div>
+    </div>`;
+  el.style.cssText = 'cursor:default;';
+
+  searchMarker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+    .setLngLat(lngLat)
+    .addTo(map);
+}
+
+// Remove search pin on map click
+map.on('click', () => {
+  if (searchMarker) { searchMarker.remove(); searchMarker = null; }
+});
+
 async function selectPlace(mapboxId, name) {
   try {
     const url = `https://api.mapbox.com/search/searchbox/v1/retrieve/${mapboxId}?access_token=${mapboxgl.accessToken}&session_token=litspot-session`;
@@ -683,8 +729,9 @@ async function selectPlace(mapboxId, name) {
     si.value = name;
     acList.style.display = 'none';
     map.flyTo({ center: [lng, lat], zoom: 17, duration: 1000 });
+    // Show pin after flyTo lands
+    setTimeout(() => showSearchPin([lng, lat], name), 900);
     go();
-    showToast('📍 ' + name);
   } catch {}
 }
 
