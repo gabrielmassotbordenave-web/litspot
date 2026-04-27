@@ -306,7 +306,12 @@ footer {
 
 @media (max-width: 640px) {
   nav { padding: 14px 20px; }
-  .nav-right .nav-link { display: none; }
+  .nav-right .nav-link:not(.nav-partner) { display: none; }
+  .nav-partner {
+    font-size: 12px !important;
+    padding: 6px 12px !important;
+    border-radius: 50px;
+  }
   .usecases-grid { grid-template-columns: 1fr; }
   .how-step:not(:last-child)::after { display: none; }
   .how-steps { gap: 32px; }
