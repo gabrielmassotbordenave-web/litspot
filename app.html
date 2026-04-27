@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LitSpot — Find Sunny Spots & Sun-Lit Terraces Near You</title>
 
+<!-- SEO -->
 <meta name="description" content="LitSpot shows you exactly where the sun shines right now — and all day. See real building shadows on a live map. Find the sunniest terrace, park or street near you.">
 <meta name="keywords" content="sunny spot, find sun, sunny terrace, shadow map, where is the sun, sun position map, sunniest place, terrace in the sun, building shadows">
 <meta name="author" content="LitSpot">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://litspot.app/">
 
+<!-- Open Graph (réseaux sociaux) -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://litspot.app/">
 <meta property="og:title" content="LitSpot — Find Sunny Terraces Near You">
@@ -18,11 +20,13 @@
 <meta property="og:image" content="https://litspot.app/og-image.jpg">
 <meta property="og:locale" content="en_US">
 
+<!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="LitSpot — Find Sunny Terraces Near You">
 <meta name="twitter:description" content="Real-time shadow map with 3D buildings. See where the sun shines, block by block.">
 <meta name="twitter:image" content="https://litspot.app/og-image.jpg">
 
+<!-- Structured Data -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -43,7 +47,7 @@
 }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Playfair+Display:wght@600&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
@@ -168,7 +172,7 @@ html, body {
   gap: 8px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
   width: 56px;
-  transition: opacity 0.2s;
+  transition: opacity 0.3s ease;
 }
 .pill-time {
   font-family: 'Cormorant Garamond', serif;
@@ -204,6 +208,8 @@ html, body {
   box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5);
 }
 
+
+
 /* ── VENUE PINS ── */
 .venue-pin {
   width: 44px; height: 44px;
@@ -227,237 +233,145 @@ html, body {
   50% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 10px rgba(232,137,12,0); }
 }
 
-/* ── VENUE CARD — PREMIUM VERSION ── */
+/* ── VENUE CARD — bottom sheet on mobile ── */
 .venue-card {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   z-index: 1000;
-  background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(20px);
-  border-radius: 28px 28px 0 0;
-  overflow: hidden;
-  box-shadow:
-    0 -10px 40px rgba(0,0,0,0.18),
-    0 -2px 8px rgba(0,0,0,0.06);
+  background: #FFFFFF;
+  opacity: 1;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 24px 24px 0 0;
+  overflow: visible;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.18), 0 -1px 0 rgba(0,0,0,0.06);
   transform: translateY(100%);
-  transition: transform .45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1);
   pointer-events: none;
-  padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
 }
-
 .venue-card.visible {
   transform: translateY(0);
   pointer-events: all;
 }
 
+/* drag handle */
 .card-handle {
-  width: 42px;
-  height: 5px;
-  background: rgba(0,0,0,0.18);
-  border-radius: 3px;
-  margin: 10px auto 4px;
+  width: 36px; height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  margin: 12px auto 0;
 }
 
 .venue-card-photo {
-  width: 100%;
-  height: 160px;
+  width: 100%; height: 140px;
   object-fit: cover;
-  display: none;
-}
-.venue-card.has-photo .venue-card-photo {
   display: block;
 }
-
+.venue-card-photo-placeholder { display: none; }
 .venue-card-header {
-  position: relative;
-  padding: 16px 20px 14px;
+  padding: 12px 20px 14px;
+  border-bottom: 1px solid rgba(255,240,220,0.08);
 }
+/* When photo present, overlay name on image */
 .venue-card.has-photo .venue-card-header {
+  position: relative;
   padding: 0;
+  border-bottom: none;
 }
-
 .venue-card.has-photo .venue-card-header-inner {
   position: absolute;
   bottom: 0; left: 0; right: 0;
-  padding: 16px 20px;
-  background: linear-gradient(
-    to top,
-    rgba(0,0,0,0.75),
-    rgba(0,0,0,0.25),
-    transparent
-  );
+  padding: 12px 20px 14px;
+  background: linear-gradient(transparent, rgba(28,20,16,0.95));
 }
-
+.venue-card:not(.has-photo) .venue-card-header-inner {
+  padding: 12px 20px 14px;
+}
+.venue-card-status {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.status-dot.sun { background: #E8890C; box-shadow: 0 0 6px rgba(232,137,12,0.7); }
+.status-dot.shade { background: #b0a090; }
+.venue-status-txt { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
+.venue-status-txt.sun { color: #E8890C; }
+.venue-status-txt.shade { color: #8a7a6a; }
 .venue-name {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 24px;
-  font-weight: 600;
-  color: #1A0E08;
-  letter-spacing: -0.3px;
+  font-size: 22px; font-weight: 600; color: #1a0e08; margin-bottom: 2px;
 }
+.venue-type { font-size: 12px; color: rgba(255,255,255,0.4); }
 
-.venue-card.has-photo .venue-name { color: #FFF; }
-
-.venue-type {
-  font-size: 13px;
-  color: #8A7A6A;
-}
-
-.venue-card.has-photo .venue-type { color: rgba(255,255,255,0.75); }
-
-.venue-card-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.status-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-}
-.status-dot.sun {
-  background: #E8890C;
-  box-shadow: 0 0 8px rgba(232,137,12,0.8);
-}
-.status-dot.shade { background: #B0A090; }
-
-.venue-status-txt {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-}
-.venue-status-txt.sun { color: #E8890C; }
-.venue-status-txt.shade { color: #8A7A6A; }
-
-.venue-card-body { padding: 16px 20px 18px; }
-
+.venue-card-body { padding: 14px 20px 16px; }
 .sun-schedule {
-  background: #FFF7ED;
-  border-radius: 16px;
-  padding: 14px;
-  margin-bottom: 16px;
-  box-shadow: inset 0 0 0 1px rgba(232,137,12,0.08);
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px; padding: 10px 14px; margin-bottom: 14px;
 }
-
 .sun-schedule-title {
-  font-size: 10px;
-  color: #8A7A6A;
-  letter-spacing: 0.7px;
-  text-transform: uppercase;
-  margin-bottom: 10px;
+  font-size: 10px; color: rgba(255,230,200,0.4);
+  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
 }
-
-.sun-slots {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.slot-time-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #E8890C;
-}
-
-.slot-arrow { font-size: 11px; color: #B0A090; }
-
-.slot-bar-wrap {
-  position: relative;
-  height: 6px;
-  border-radius: 4px;
-  background: rgba(0,0,0,0.08);
-}
-
-.slot-fill {
-  position: absolute;
-  height: 100%;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #E8890C, #FFB347);
-}
-
-.slot-now-line {
-  position: absolute;
-  top: -4px;
-  width: 2px;
-  height: 14px;
-  background: #1A0E08;
-  opacity: 0.6;
-}
-
+.sun-slots { display: flex; flex-direction: column; gap: 10px; }
+.sun-slot { display: flex; flex-direction: column; gap: 6px; }
 .slot-times {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
 }
-
+.slot-time-label {
+  font-size: 13px; font-weight: 600; color: #E8890C;
+}
+.slot-arrow { font-size: 11px; color: rgba(255,255,255,0.3); }
+.slot-bar-wrap {
+  position: relative; height: 6px; border-radius: 3px;
+  background: rgba(255,240,220,0.1);
+}
+.slot-fill {
+  position: absolute; top: 0; height: 100%;
+  border-radius: 3px; background: #E8890C;
+}
+.slot-now-line {
+  position: absolute; top: -3px; width: 2px; height: 12px;
+  background: #fff; border-radius: 1px; opacity: 0.8;
+}
 .slot-day-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 4px;
-  font-size: 10px;
-  color: #B0A090;
-  letter-spacing: 0.3px;
+  display: flex; justify-content: space-between;
+  font-size: 9px; color: rgba(255,255,255,0.2);
+  margin-top: 2px;
 }
 
-.venue-cta {
-  display: flex;
-  gap: 12px;
-  margin-top: 6px;
+.venue-cta { display: flex; gap: 10px; }
+.btn-directions, .btn-reserve {
+  flex: 1; padding: 14px 10px; border-radius: 14px;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; text-align: center;
+  font-family: 'Outfit', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  border: none;
 }
-
-.btn-directions,
-.btn-reserve {
-  flex: 1;
-  padding: 15px 12px;
-  border-radius: 16px;
-  font-size: 15px;
-  font-weight: 600;
-  text-align: center;
-  cursor: pointer;
-  transition: all .2s ease;
-}
-
 .btn-directions {
-  background: #FFF7ED;
-  border: 1px solid #FFD8A8;
-  color: #C56A00;
+  background: rgba(255,240,220,0.1);
+  border: 1px solid rgba(255,240,220,0.12);
+  color: rgba(255,230,200,0.8);
 }
-.btn-directions:hover { background: #FFEAD5; }
-.btn-directions:active { transform: scale(0.97); }
-
-.btn-reserve {
-  background: linear-gradient(135deg, #E8890C, #FFB347);
-  color: #1A0E08;
-  box-shadow: 0 4px 14px rgba(232,137,12,0.35);
-}
-.btn-reserve:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(232,137,12,0.45);
-}
-.btn-reserve:active { transform: scale(0.96); }
+.btn-directions:active { background: rgba(255,255,255,0.14); }
+.btn-reserve { background: #E8890C; color: #0d1117; }
+.btn-reserve:active { background: #FFA928; }
 
 .venue-card-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(6px);
-  color: #1A0E08;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all .2s ease;
+  position: absolute; top: 14px; right: 14px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,240,220,0.14); border: none;
+  color: #FFF5E6; font-size: 16px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 2000;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.venue-card-close:hover { background: rgba(255,255,255,1); }
-.venue-card-close:active { transform: scale(0.9); }
+.venue-card-close:active { background: rgba(255,255,255,0.25); }
 
+/* ── CARD BACKDROP ── */
 #cardBackdrop {
   display: none;
   position: fixed;
@@ -467,12 +381,13 @@ html, body {
 }
 #cardBackdrop.visible { display: block; }
 
+/* ── TOAST ── */
 #toast {
   position: absolute;
   bottom: calc(env(safe-area-inset-bottom) + 20px);
   left: 50%; transform: translateX(-50%) translateY(8px);
   background: rgba(28,20,16,0.95);
-  border: 1px solid rgba(255,240,220,0.1);
+  border: 1px solid rgba(0,0,0,0.06);
   border-radius: 12px; padding: 10px 20px;
   font-size: 14px; color: #FFF5E6;
   z-index: 500; pointer-events: none; opacity: 0;
@@ -481,6 +396,7 @@ html, body {
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* Rotation hint */
 #rotHint {
   bottom: calc(env(safe-area-inset-bottom) + 20px) !important;
 }
@@ -490,6 +406,7 @@ html, body {
 
 <div id="map"></div>
 
+<!-- Search -->
 <div class="top-bar">
   <div class="search-wrap">
     <input id="searchInput" type="text" placeholder="Bar, restaurant, address…" autocomplete="off" spellcheck="false">
@@ -500,6 +417,7 @@ html, body {
   <button class="geo-btn" id="geoBtn">🎯</button>
 </div>
 
+<!-- Time pill -->
 <div class="time-pill">
   <div class="pill-time" id="timeTxt">12:00</div>
   <div class="pill-status" id="statusEmoji">☀️</div>
@@ -507,8 +425,11 @@ html, body {
     <div class="slider-fill" id="sliderFill"></div>
     <div class="slider-thumb" id="sliderThumb"></div>
   </div>
+
 </div>
 
+
+<!-- Rotation hint -->
 <div id="rotHint" style="
   position:absolute;
   bottom:32px;
@@ -542,6 +463,7 @@ async function loadVenues() {
       }
     });
     const data = await res.json();
+    // Convert snake_case to camelCase to match existing code
     return data.map(v => ({
       id: v.id,
       name: v.name,
@@ -561,24 +483,6 @@ async function loadVenues() {
   }
 }
 
-// Enregistre les statistiques de clics dans Supabase
-async function trackClick(venueId, clickType) {
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/venue_clicks`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ venue_id: venueId, click_type: clickType })
-    });
-  } catch (e) {
-    console.error('Erreur de tracking:', e);
-  }
-}
-
 mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
 
 let lat = 45.5088, lng = -73.5878;
@@ -586,16 +490,17 @@ let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
 let toastTmt, acTimeout, dragging = false;
 
-// ── MAP (Mise à jour pour utiliser la précision OSM avec light-v11)
+// ── MAP
 const map = new mapboxgl.Map({
   container: 'map',
   style: 'mapbox://styles/mapbox/standard',
   center: [lng, lat],
   zoom: 16,
-  pitch: 60, // Angle accentué pour mieux voir la 3D
+  pitch: 45,
   antialias: true,
 });
 
+// Auto-detect user position for better search results
 if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(p => {
     userLat = p.coords.latitude;
@@ -648,16 +553,16 @@ function updateSunLight() {
   }
 }
 
-// ── SLIDER
+// ── SLIDER (custom vertical — plus fiable que input[type=range] vertical)
 const track = document.getElementById('sliderTrack');
 const fill  = document.getElementById('sliderFill');
 const thumb = document.getElementById('sliderThumb');
 
 function updateSliderUI() {
-  const pct = mins / 1439;
+  const pct = mins / 1439; // 0=00h, 1=23h59
   const trackH = track.offsetHeight;
   const thumbH = thumb.offsetHeight;
-  const pos = (1 - pct) * (trackH - thumbH);
+  const pos = (1 - pct) * (trackH - thumbH); // 0h en bas, 23h en haut
   thumb.style.top = pos + 'px';
   fill.style.height = (pct * trackH) + 'px';
 }
@@ -681,6 +586,7 @@ document.addEventListener('mousemove', e => {
 });
 document.addEventListener('mouseup', () => { dragging = false; });
 
+// Touch
 track.addEventListener('touchstart', e => {
   dragging = true;
   mins = pxToMins(e.touches[0].clientY);
@@ -706,12 +612,14 @@ function updateStatus() {
   const h = String(~~(mins/60)).padStart(2,'0');
   const m = String(mins%60).padStart(2,'0');
   document.getElementById('timeTxt').textContent = h + ':' + m;
+
 }
 
 let sunLightTimer = null;
 function go() {
   updateStatus();
   updateVenuePins();
+  // Debounce setLights to avoid WebGL overload when sliding fast
   clearTimeout(sunLightTimer);
   sunLightTimer = setTimeout(() => {
     if (map.isStyleLoaded()) updateSunLight();
@@ -720,26 +628,14 @@ function go() {
 
 // ── MAP LOAD
 map.on('style.load', async () => {
-  
-  // 1. On réactive les bâtiments 3D natifs ultra-optimisés de Mapbox
   map.setConfigProperty('basemap', 'show3dObjects', true);
-
-  // 2. On garde le relief (Topographie), ça ne ralentit pas et ajuste bien les ombres
-  map.addSource('mapbox-dem', {
-    'type': 'raster-dem',
-    'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-    'tileSize': 512,
-    'maxzoom': 14
-  });
-  map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1 });
-
   updateSliderUI();
   go();
-  
-  // Load venues from Supabase
+  // Load venues from Supabase then add markers
   VENUES = await loadVenues();
   addVenueMarkers();
 });
+
 // ── GEOLOC
 document.getElementById('geoBtn').addEventListener('click', () => {
   if (!navigator.geolocation) return showToast('Not supported');
@@ -752,9 +648,15 @@ document.getElementById('geoBtn').addEventListener('click', () => {
   }, () => showToast('❌ Access denied'));
 });
 
+
+
 map.on('click', e => {
+  // Don't fire if user tapped on the venue card or any overlay UI
   const card = document.getElementById('venueCard');
-  if (card.classList.contains('visible')) return;
+  if (card.classList.contains('visible')) {
+    // Let card handle its own events
+    return;
+  }
   lng = e.lngLat.lng; lat = e.lngLat.lat;
   showToast('📍 Location updated');
 });
@@ -779,6 +681,7 @@ si.addEventListener('input',()=>{
 async function fetchPlaces(q){
   spn.style.display='block'; sico.style.display='none';
   try {
+    // Mapbox Search Box API — built for POI (bars, restaurants, cafes...)
     const url = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${mapboxgl.accessToken}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${userLng||lng},${userLat||lat}`;
     const res = await fetch(url);
     const data = await res.json();
@@ -787,10 +690,14 @@ async function fetchPlaces(q){
   finally { spn.style.display='none'; sico.style.display='block'; }
 }
 
+// Search result marker
 let searchMarker = null;
 
 function showSearchPin(lngLat, name) {
+  // Remove previous pin
   if (searchMarker) { searchMarker.remove(); searchMarker = null; }
+
+  // Create a classic Google Maps style pin
   const el = document.createElement('div');
   el.innerHTML = `
     <div style="
@@ -817,11 +724,13 @@ function showSearchPin(lngLat, name) {
       "></div>
     </div>`;
   el.style.cssText = 'cursor:default;';
+
   searchMarker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
     .setLngLat(lngLat)
     .addTo(map);
 }
 
+// Remove search pin on map click
 map.on('click', () => {
   if (searchMarker) { searchMarker.remove(); searchMarker = null; }
 });
@@ -838,6 +747,7 @@ async function selectPlace(mapboxId, name) {
     si.value = name;
     acList.style.display = 'none';
     map.flyTo({ center: [lng, lat], zoom: 17, duration: 1000 });
+    // Show pin after flyTo lands
     setTimeout(() => showSearchPin([lng, lat], name), 900);
     go();
   } catch {}
@@ -867,6 +777,7 @@ function showToast(msg){
   clearTimeout(toastTmt);toastTmt=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
+// Live clock
 setInterval(()=>{
   const n=new Date(),lm=n.getHours()*60+n.getMinutes();
   if(!dragging&&Math.abs(lm-mins)<=1){mins=lm;updateSliderUI();go();}
@@ -875,15 +786,17 @@ setInterval(()=>{
 window.addEventListener('resize', updateSliderUI);
 
 // ══════════════════════════════════════════
-// VENUES
+// VENUES — add your partners here
 // ══════════════════════════════════════════
-let VENUES = [];
+let VENUES = []; // loaded from Supabase
 
+// Check if venue is in sun at current time
 function venueInSun(venue) {
-  const h = mins / 60;
+  const h = mins / 60; // current hour as float
   return venue.sunWindows.some(([start, end]) => h >= start && h < end);
 }
 
+// Compute sun slots for display — merge windows into readable format
 function getSunSlots(venue) {
   const DAY_START = 7, DAY_END = 21, DAY_SPAN = DAY_END - DAY_START;
   const nowH = mins / 60;
@@ -897,6 +810,7 @@ function getSunSlots(venue) {
   });
 }
 
+// Add venue markers to map
 const venueMarkers = {};
 
 function makePin(venue, inSun) {
@@ -941,6 +855,7 @@ function addVenueMarkers() {
   });
 }
 
+// Update all venue pins when time changes
 function updateVenuePins() {
   VENUES.forEach(venue => {
     const v = venueMarkers[venue.id];
@@ -952,6 +867,7 @@ function updateVenuePins() {
   if (currentVenue) updateVenueCard(currentVenue);
 }
 
+// Open venue card
 let currentVenue = null;
 function closeVenueCard() {
   const card = document.getElementById('venueCard');
@@ -959,14 +875,20 @@ function closeVenueCard() {
   card.classList.remove('visible');
   document.getElementById('cardBackdrop').classList.remove('visible');
   currentVenue = null;
+  // Show time pill again
+  document.querySelector('.time-pill').style.opacity = '1';
+  document.querySelector('.time-pill').style.pointerEvents = '';
 }
 
 function openVenueCard(venue) {
   currentVenue = venue;
   updateVenueCard(venue);
-  trackClick(venue.id, 'card_view');
   document.getElementById('venueCard').classList.add('visible');
   document.getElementById('cardBackdrop').classList.add('visible');
+  // Hide time pill
+  document.querySelector('.time-pill').style.opacity = '0';
+  document.querySelector('.time-pill').style.pointerEvents = 'none';
+  // Smooth zoom to venue, offset center slightly right to leave room for card
   map.flyTo({
     center: [venue.lng, venue.lat],
     zoom: 16,
@@ -981,6 +903,7 @@ function updateVenueCard(venue) {
   document.getElementById('vcName').textContent = venue.name;
   document.getElementById('vcType').textContent = venue.type;
 
+  // Photo — show if available, hide if not
   const card = document.getElementById('venueCard');
   const photo = document.getElementById('vcPhoto');
   if (venue.photoUrl) {
@@ -999,6 +922,7 @@ function updateVenueCard(venue) {
   statusTxt.className = 'venue-status-txt ' + (inSun ? 'sun' : 'shade');
   statusTxt.textContent = inSun ? '☀️ In the sun now' : '🌑 In the shade now';
 
+  // Sun schedule bars
   const slots = getSunSlots(venue);
   const slotsEl = document.getElementById('vcSlots');
   slotsEl.innerHTML = slots.map(s => `
@@ -1016,16 +940,22 @@ function updateVenueCard(venue) {
     </div>
   `).join('');
 
-  document.getElementById('vcDir').onclick = () => {
-    trackClick(venue.id, 'directions_click');
-    window.open(venue.directionsUrl, '_blank');
-  };
-  document.getElementById('vcRes').onclick = () => {
-    trackClick(venue.id, 'reserve_click');
-    window.open(venue.reserveUrl, '_blank');
-  };
+  // CTA buttons
+  document.getElementById('vcDir').onclick = () => window.open(venue.directionsUrl, '_blank');
+  document.getElementById('vcRes').onclick = () => window.open(venue.reserveUrl, '_blank');
 }
 
+// Close card
+// close button uses inline onclick
+
+// Close on map click
+// Close card on map click
+
+
+// Markers initialized in style.load above
+
+
+// Swipe to close - on the whole card
 (function() {
   const card = document.getElementById('venueCard');
   let startY = 0, active = false, moved = 0;
@@ -1057,29 +987,36 @@ function updateVenueCard(venue) {
   }, { passive: true });
 })();
 
+
 document.getElementById('cardBackdrop').addEventListener('click', closeVenueCard);
 document.getElementById('cardBackdrop').addEventListener('touchend', (e) => {
   e.preventDefault();
   closeVenueCard();
 });
 
+// Show rotation hint on load then fade out
 window.addEventListener('load', () => {
   const hint = document.getElementById('rotHint');
+  // Fade in after 1s
   setTimeout(() => { hint.style.opacity = '1'; }, 1000);
+  // Fade out after 4s
   setTimeout(() => { hint.style.opacity = '0'; }, 4000);
 });
 
+
+// Recovery: if map style gets stuck, re-apply lights on next idle
 map.on('idle', () => {
-  if (sunLightTimer) return;
+  if (sunLightTimer) return; // slider is moving, skip
   if (map.isStyleLoaded()) updateSunLight();
 });
 
 </script>
 
 <div id="cardBackdrop"></div>
+<!-- Venue card -->
 <div class="venue-card" id="venueCard">
   <div class="card-handle"></div>
-  <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
+  <button class="venue-card-close" style="z-index:9999;position:absolute;top:14px;right:14px;"  onclick="document.getElementById('venueCard').classList.remove('visible');document.getElementById('cardBackdrop').classList.remove('visible');currentVenue=null;" style="z-index:9999;position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
   <div class="venue-card-header" id="vcHeader">
     <img id="vcPhoto" class="venue-card-photo venue-card-photo-placeholder" src="" alt="">
     <div class="venue-card-header-inner">
