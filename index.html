@@ -262,10 +262,18 @@ html, body {
   width: 100%;
   height: 160px;
   object-fit: cover;
+  display: none;
+}
+.venue-card.has-photo .venue-card-photo {
+  display: block;
 }
 
 .venue-card-header {
+  position: relative;
   padding: 16px 20px 14px;
+}
+.venue-card.has-photo .venue-card-header {
+  padding: 0;
 }
 
 .venue-card.has-photo .venue-card-header-inner {
@@ -375,6 +383,22 @@ html, body {
   height: 14px;
   background: #1A0E08;
   opacity: 0.6;
+}
+
+.slot-times {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.slot-day-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #B0A090;
+  letter-spacing: 0.3px;
 }
 
 .venue-cta {
