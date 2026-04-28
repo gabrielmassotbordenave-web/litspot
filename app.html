@@ -400,9 +400,7 @@ html, body {
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* Rotation hint */
-#rotHint {
-  bottom: calc(env(safe-area-inset-bottom) + 20px) !important;
-}
+
 
 /* ── ZOOM HINT ── */
 .zoom-hint {
@@ -445,11 +443,43 @@ html, body {
   font-style: normal;
   font-weight: 600;
 }
+
+/* ── ZOOM HINT ── */
+#zoomHint {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  background: rgba(28,20,16,0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,184,0,0.25);
+  border-radius: 50px;
+  padding: 10px 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(255,245,230,0.9);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+#zoomHint.visible { opacity: 1; }
+#zoomHint .zh-icon { font-size: 16px; animation: zhFloat 2s ease-in-out infinite; }
+@keyframes zhFloat {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+#zoomHint em { color: #FFB800; font-style: normal; font-weight: 600; }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
+<canvas id="shadowOverlay" style="position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;transition:opacity 0.6s;"></canvas>
 
 <!-- Search -->
 <div class="top-bar">
@@ -474,28 +504,11 @@ html, body {
 </div>
 
 
-<!-- Rotation hint -->
-<div id="rotHint" style="
-  position:absolute;
-  bottom:32px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:100;
-  background:rgba(12,15,30,0.82);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:10px;
-  padding:8px 16px;
-  font-size:12px;
-  color:rgba(255,255,255,0.6);
-  pointer-events:none;
-  white-space:nowrap;
-  opacity:0;
-  transition:opacity 0.5s;
-">👆 Two fingers to rotate · Pinch to zoom</div>
 <div class="zoom-hint" id="zoomHint">
   <span class="zoom-hint-icon">🔍</span>
   <span class="zoom-hint-text">Zoomez pour voir les <em>ombres</em></span>
 </div>
+<div id="zoomHint"><span class="zh-icon">☀️</span><span>Approchez pour voir les <em>ombres réelles</em></span></div>
 <div id="toast"></div>
 
 <script>
@@ -731,7 +744,7 @@ map.on('style.load', async () => {
   startAnimLoop();
   VENUES = await loadVenues();
   addVenueMarkers();
-  checkZoomHint();
+  updateZoomState();
 });
 
 
@@ -749,16 +762,7 @@ document.getElementById('geoBtn').addEventListener('click', () => {
 
 
 
-map.on('click', e => {
-  // Don't fire if user tapped on the venue card or any overlay UI
-  const card = document.getElementById('venueCard');
-  if (card.classList.contains('visible')) {
-    // Let card handle its own events
-    return;
-  }
-  lng = e.lngLat.lng; lat = e.lngLat.lat;
-  showToast('📍 Location updated');
-});
+
 
 // ── SEARCH
 const si=document.getElementById('searchInput'),acList=document.getElementById('ac-list'),spn=document.getElementById('spinner'),sico=document.querySelector('.s-icon');
@@ -830,8 +834,14 @@ function showSearchPin(lngLat, name) {
 }
 
 // Remove search pin on map click
-map.on('click', () => {
+map.on('click', e => {
+  // Remove search pin
   if (searchMarker) { searchMarker.remove(); searchMarker = null; }
+  // Don't update position if venue card is open
+  const card = document.getElementById('venueCard');
+  if (card.classList.contains('visible')) return;
+  lng = e.lngLat.lng; lat = e.lngLat.lat;
+  showToast('📍 Location updated');
 });
 
 async function selectPlace(mapboxId, name) {
@@ -1093,35 +1103,120 @@ document.getElementById('cardBackdrop').addEventListener('touchend', (e) => {
   closeVenueCard();
 });
 
-// Show rotation hint on load then fade out
-window.addEventListener('load', () => {
-  const hint = document.getElementById('rotHint');
-  // Fade in after 1s
-  setTimeout(() => { hint.style.opacity = '1'; }, 1000);
-  // Fade out after 4s
-  setTimeout(() => { hint.style.opacity = '0'; }, 4000);
-});
+
 
 
 // idle handler removed — rAF loop handles updates
 
 
 // ── ZOOM HINT ──────────────────────────────────────────────────
-function checkZoomHint() {
+// zoom hint managed by updateZoomStatew
+
+
+// ── DIRECTIONAL SHADOW OVERLAY (low zoom) + ZOOM HINT ────────────────
+const SHADOW_ZOOM_THRESHOLD = 14.5;
+const overlayCanvas = document.getElementById('shadowOverlay');
+const overlayCtx = overlayCanvas.getContext('2d');
+
+function resizeOverlay() {
+  overlayCanvas.width  = window.innerWidth;
+  overlayCanvas.height = window.innerHeight;
+}
+resizeOverlay();
+window.addEventListener('resize', resizeOverlay);
+
+function drawShadowOverlay() {
+  const W = overlayCanvas.width, H = overlayCanvas.height;
+  overlayCtx.clearRect(0, 0, W, H);
+
+  const d = new Date();
+  d.setHours(Math.floor(renderedMins/60), Math.floor(renderedMins%60), 0, 0);
+  const pos = SunCalc.getPosition(d, lat, lng);
+  const alt = pos.altitude * 180 / Math.PI;
+  const az  = pos.azimuth  * 180 / Math.PI;
+
+  if (alt <= -6) {
+    // Full night
+    overlayCtx.fillStyle = 'rgba(5,10,30,0.55)';
+    overlayCtx.fillRect(0, 0, W, H);
+    return;
+  }
+  if (alt <= 0) {
+    const t = (alt + 6) / 6;
+    overlayCtx.fillStyle = `rgba(5,10,30,${0.45*(1-t)})`;
+    overlayCtx.fillRect(0, 0, W, H);
+    return;
+  }
+
+  // Directional gradient — shadow side darkened, sun side warm glow
+  const shadowAngle = (az + 180) * Math.PI / 180;
+  const canvasAngle = Math.PI/2 - shadowAngle;
+  const strength = Math.max(0, Math.min(1, 1 - alt/60));
+  const len = Math.max(W, H) * 1.6 * strength;
+  const cx = W/2, cy = H * 0.52;
+  const ex = cx + Math.cos(canvasAngle) * len;
+  const ey = cy + Math.sin(canvasAngle) * len;
+
+  const g = overlayCtx.createLinearGradient(cx, cy, ex, ey);
+  const a = strength * 0.38;
+  g.addColorStop(0, 'rgba(5,10,30,0)');
+  g.addColorStop(0.3, `rgba(5,10,30,${a*0.4})`);
+  g.addColorStop(1, `rgba(5,10,30,${a})`);
+  overlayCtx.fillStyle = g;
+  overlayCtx.fillRect(0, 0, W, H);
+
+  // Warm sun glow on sun side
+  const sx = cx - Math.cos(canvasAngle)*len*0.4;
+  const sy = cy - Math.sin(canvasAngle)*len*0.4;
+  const sg = overlayCtx.createRadialGradient(sx,sy,0,sx,sy,len*0.55);
+  const wa = Math.min(0.07, alt/400);
+  sg.addColorStop(0, `rgba(255,200,60,${wa})`);
+  sg.addColorStop(1, 'rgba(255,200,60,0)');
+  overlayCtx.fillStyle = sg;
+  overlayCtx.fillRect(0, 0, W, H);
+}
+
+function updateZoomState() {
+  const zoom = map.getZoom();
+  const isClose = zoom >= SHADOW_ZOOM_THRESHOLD;
   const hint = document.getElementById('zoomHint');
-  if (!hint) return;
-  // Show hint when zoom < 15, hide when zoomed in enough
-  if (map.getZoom() < 14.5) {
-    hint.classList.add('visible');
-  } else {
+
+  if (isClose) {
+    // Close zoom: hide overlay, show real 3D shadows, hide hint
+    overlayCanvas.style.opacity = '0';
     hint.classList.remove('visible');
+  } else {
+    // Far zoom: show directional overlay, show hint
+    drawShadowOverlay();
+    overlayCanvas.style.opacity = '1';
+    hint.classList.add('visible');
   }
 }
 
-map.on('zoom', checkZoomHint);
-map.on('zoomend', checkZoomHint);
+// Hook into existing animLoop — draw overlay when idle and far
+const _origAnimLoop = animLoop;
+let overlayFrameCount = 0;
 
-// checkZoomHint called from existing style.load below
+// Override: redraw overlay every 3 frames when far out
+const _checkOverlay = () => {
+  overlayFrameCount++;
+  if (overlayFrameCount % 3 === 0) {
+    const zoom = map.getZoom ? map.getZoom() : 16;
+    if (zoom < SHADOW_ZOOM_THRESHOLD) drawShadowOverlay();
+  }
+};
+
+// Patch go() to also update overlay
+const _origGo = go;
+// We can't override go directly — instead hook into slider update
+document.getElementById('sliderTrack').addEventListener('touchmove', _checkOverlay, {passive:true});
+document.getElementById('sliderTrack').addEventListener('mousemove', _checkOverlay);
+
+map.on('zoom', updateZoomState);
+map.on('zoomend', updateZoomState);
+map.on('move', () => {
+  if (map.getZoom() < SHADOW_ZOOM_THRESHOLD) drawShadowOverlay();
+});
 
 </script>
 
