@@ -572,7 +572,7 @@ function toDeg(r)   { return r * 180 / Math.PI; }
 
 // ── SUN LIGHT
 function updateSunLightAt(m) {
-  if (!map.isStyleLoaded() || !map.getLayer) return;
+  if (!map.isStyleLoaded()) return;
   // High-precision sun position for arbitrary time
   const d = new Date();
   d.setHours(Math.floor(m / 60), Math.floor(m % 60), Math.round((m % 1) * 60), 0);
@@ -582,27 +582,35 @@ function updateSunLightAt(m) {
   const polar = Math.max(2, Math.min(90, 90 - alt));
 
   if (alt < -6) {
+    try {
     map.setLights([
       { id: 'ambient', type: 'ambient', properties: { color: '#0a1535', intensity: 0.3 } },
       { id: 'sun', type: 'directional', properties: { color: '#0a1535', intensity: 0, direction: [mapboxAz, polar], 'shadow-intensity': 0 } },
     ]);
+  } catch(e) {}
   } else if (alt <= 0) {
     const t = (alt + 6) / 6;
+    try {
     map.setLights([
       { id: 'ambient', type: 'ambient', properties: { color: '#1a2040', intensity: 0.4 } },
       { id: 'sun', type: 'directional', properties: { color: `hsl(25,60%,${40+t*20}%)`, intensity: 0.3*t, direction: [mapboxAz, polar], 'shadow-intensity': 0.3*t } },
     ]);
+  } catch(e) {}
   } else if (alt < 15) {
     const t = alt / 15;
+    try {
     map.setLights([
       { id: 'ambient', type: 'ambient', properties: { color: '#fff3d0', intensity: 0.4 } },
       { id: 'sun', type: 'directional', properties: { color: `hsl(${30+t*10},${90-t*20}%,${65+t*10}%)`, intensity: 0.7+t*0.3, direction: [mapboxAz, polar], 'shadow-intensity': 1.0 } },
     ]);
+  } catch(e) {}
   } else {
+    try {
     map.setLights([
       { id: 'ambient', type: 'ambient', properties: { color: '#fff8f0', intensity: 0.25 } },
       { id: 'sun', type: 'directional', properties: { color: '#ffffff', intensity: 1.0, direction: [mapboxAz, polar], 'shadow-intensity': 1.0 } },
     ]);
+  } catch(e) {}
   }
 }
 function updateSunLight() { updateSunLightAt(mins); }
@@ -712,7 +720,7 @@ map.on('style.load', async () => {
   // Load venues from Supabase then add markers
   VENUES = await loadVenues();
   addVenueMarkers();
-  setTimeout(checkZoomHint, 800);
+  checkZoomHint();
 });
 
 // ── GEOLOC
@@ -1083,10 +1091,7 @@ window.addEventListener('load', () => {
 });
 
 
-// Re-apply on idle in case style reloaded
-map.on('idle', () => {
-  if (!isAnimating && map.isStyleLoaded()) updateSunLightAt(renderedMins);
-});
+// idle handler removed — rAF loop handles updates
 
 
 // ── ZOOM HINT ──────────────────────────────────────────────────
