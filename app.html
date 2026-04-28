@@ -406,11 +406,11 @@ html, body {
 
 /* ── ZOOM HINT ── */
 .zoom-hint {
-  position: absolute;
+  position: fixed;
   bottom: 32px;
   left: 50%;
-  transform: translateX(-50%) translateY(0);
-  z-index: 100;
+  transform: translateX(-50%);
+  z-index: 500;
   background: rgba(28,20,16,0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -572,7 +572,7 @@ function toDeg(r)   { return r * 180 / Math.PI; }
 
 // ── SUN LIGHT
 function updateSunLightAt(m) {
-  if (!map.isStyleLoaded()) return;
+  if (!map.isStyleLoaded() || !map.getLayer) return;
   // High-precision sun position for arbitrary time
   const d = new Date();
   d.setHours(Math.floor(m / 60), Math.floor(m % 60), Math.round((m % 1) * 60), 0);
@@ -712,7 +712,7 @@ map.on('style.load', async () => {
   // Load venues from Supabase then add markers
   VENUES = await loadVenues();
   addVenueMarkers();
-  setTimeout(checkZoomHint, 500);
+  setTimeout(checkZoomHint, 800);
 });
 
 // ── GEOLOC
