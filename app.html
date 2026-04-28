@@ -404,39 +404,29 @@ html, body {
 
 
 
-/* ── ZOOM HINT ── */
+
 #zoomHint {
-  position: fixed;
-  bottom: 32px;
-  left: 50%;
+  position: fixed; bottom: 32px; left: 50%;
   transform: translateX(-50%);
   z-index: 200;
   background: rgba(28,20,16,0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255,184,0,0.25);
   border-radius: 50px;
   padding: 10px 22px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
   font-size: 13px;
   color: rgba(255,245,230,0.9);
-  white-space: nowrap;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.4s;
+  white-space: nowrap;
 }
 #zoomHint.visible { opacity: 1; }
-#zoomHint .zh-icon { animation: zhFloat 2s ease-in-out infinite; display: inline-block; }
-@keyframes zhFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 #zoomHint em { color: #FFB800; font-style: normal; font-weight: 600; }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
-<canvas id="shadowOverlay" style="position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;transition:opacity 0.6s;"></canvas>
 
 <!-- Search -->
 <div class="top-bar">
@@ -461,7 +451,7 @@ html, body {
 </div>
 
 
-<div id="zoomHint"><span class="zh-icon">☀️</span><span>Approchez pour voir les <em>ombres réelles</em></span></div>
+<div id="zoomHint">☀️ &nbsp;Approchez pour voir les <em>ombres réelles</em></div>
 <div id="toast"></div>
 
 <script>
@@ -648,7 +638,6 @@ function updateStatus() {
 let targetMins = mins;
 let renderedMins = mins;
 let rafId = null;
-let isFarZoom = false;
 
 // Single persistent rAF loop — never stops, never gets stuck
 let frameCount = 0;
@@ -669,7 +658,6 @@ function animLoop() {
     if (frameCount % 30 === 0 && map.isStyleLoaded()) {
       try { updateSunLightAt(renderedMins); } catch(e) {}
     }
-    if (isFarZoom) drawShadowOverlay();
   }
 
   rafId = requestAnimationFrame(animLoop);
@@ -699,8 +687,16 @@ map.on('style.load', async () => {
   startAnimLoop();
   VENUES = await loadVenues();
   addVenueMarkers();
-  updateZoomState();
+  // Show zoom hint if needed
+  checkZoom();
 });
+
+function checkZoom() {
+  const hint = document.getElementById('zoomHint');
+  if (map.getZoom() < 14.5) hint.classList.add('visible');
+  else hint.classList.remove('visible');
+}
+map.on('zoom', checkZoom);
 
 
 // ── GEOLOC
@@ -1061,74 +1057,3 @@ document.getElementById('cardBackdrop').addEventListener('touchend', (e) => {
 
 
 // idle handler removed — rAF loop handles updates
-
-
-// ── ZOOM HINT + DIRECTIONAL OVERLAY ───────────────────────────────
-const ZOOM_THRESHOLD = 14.5;
-const overlayCanvas = document.getElementById('shadowOverlay');
-const overlayCtx = overlayCanvas.getContext('2d');
-
-function resizeOverlay() {
-  overlayCanvas.width  = window.innerWidth;
-  overlayCanvas.height = window.innerHeight;
-}
-resizeOverlay();
-
-function drawShadowOverlay() {
-  const W = overlayCanvas.width, H = overlayCanvas.height;
-  overlayCtx.clearRect(0, 0, W, H);
-  const d = new Date();
-  d.setHours(Math.floor(renderedMins/60), Math.floor(renderedMins%60), 0, 0);
-  const pos = SunCalc.getPosition(d, lat, lng);
-  const alt = pos.altitude * 180 / Math.PI;
-  const az  = pos.azimuth  * 180 / Math.PI;
-  if (alt <= -6) {
-    overlayCtx.fillStyle = 'rgba(5,10,30,0.55)';
-    overlayCtx.fillRect(0, 0, W, H);
-    return;
-  }
-  if (alt <= 0) {
-    overlayCtx.fillStyle = `rgba(5,10,30,${0.45*(1-(alt+6)/6)})`;
-    overlayCtx.fillRect(0, 0, W, H);
-    return;
-  }
-  const shadowAngle = (az + 180) * Math.PI / 180;
-  const canvasAngle = Math.PI/2 - shadowAngle;
-  const strength = Math.max(0, Math.min(1, 1 - alt/60));
-  const len = Math.max(W, H) * 1.6 * strength;
-  const cx = W/2, cy = H * 0.52;
-  const ex = cx + Math.cos(canvasAngle) * len;
-  const ey = cy + Math.sin(canvasAngle) * len;
-  const g = overlayCtx.createLinearGradient(cx, cy, ex, ey);
-  const a = strength * 0.38;
-  g.addColorStop(0, 'rgba(5,10,30,0)');
-  g.addColorStop(0.3, `rgba(5,10,30,${a*0.4})`);
-  g.addColorStop(1, `rgba(5,10,30,${a})`);
-  overlayCtx.fillStyle = g;
-  overlayCtx.fillRect(0, 0, W, H);
-  const sx = cx - Math.cos(canvasAngle)*len*0.4;
-  const sy = cy - Math.sin(canvasAngle)*len*0.4;
-  const sg = overlayCtx.createRadialGradient(sx,sy,0,sx,sy,len*0.55);
-  sg.addColorStop(0, `rgba(255,200,60,${Math.min(0.07,alt/400)})`);
-  sg.addColorStop(1, 'rgba(255,200,60,0)');
-  overlayCtx.fillStyle = sg;
-  overlayCtx.fillRect(0, 0, W, H);
-}
-
-function updateZoomState() {
-  isFarZoom = map.getZoom() < ZOOM_THRESHOLD;
-  const hint = document.getElementById('zoomHint');
-  if (isFarZoom) {
-    overlayCanvas.style.opacity = '1';
-    hint.classList.add('visible');
-    drawShadowOverlay();
-  } else {
-    overlayCanvas.style.opacity = '0';
-    hint.classList.remove('visible');
-  }
-}
-
-map.on('zoom', updateZoomState);
-map.on('zoomend', updateZoomState);
-map.on('move', () => { if (isFarZoom) drawShadowOverlay(); });
-window.addEventListener('resize', () => { resizeOverlay(); updateSliderUI(); });
