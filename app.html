@@ -492,8 +492,6 @@ html, body {
   opacity:0;
   transition:opacity 0.5s;
 ">👆 Two fingers to rotate · Pinch to zoom</div>
-
-<!-- Zoom hint -->
 <div class="zoom-hint" id="zoomHint">
   <span class="zoom-hint-icon">🔍</span>
   <span class="zoom-hint-text">Zoomez pour voir les <em>ombres</em></span>
@@ -714,6 +712,7 @@ map.on('style.load', async () => {
   // Load venues from Supabase then add markers
   VENUES = await loadVenues();
   addVenueMarkers();
+  setTimeout(checkZoomHint, 500);
 });
 
 // ── GEOLOC
@@ -1105,10 +1104,7 @@ function checkZoomHint() {
 map.on('zoom', checkZoomHint);
 map.on('zoomend', checkZoomHint);
 
-// Check once map is loaded
-map.on('style.load', () => {
-  setTimeout(checkZoomHint, 1000);
-});
+// checkZoomHint called from existing style.load below
 
 </script>
 
