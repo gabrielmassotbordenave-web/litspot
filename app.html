@@ -402,47 +402,7 @@ html, body {
 /* Rotation hint */
 
 
-/* ── ZOOM HINT ── */
-.zoom-hint {
-  position: fixed;
-  bottom: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 500;
-  background: rgba(28,20,16,0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,184,0,0.2);
-  border-radius: 50px;
-  padding: 10px 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: rgba(255,245,230,0.9);
-  font-weight: 400;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s ease, transform 0.4s ease;
-}
-.zoom-hint.visible {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-.zoom-hint-icon {
-  font-size: 18px;
-  animation: zoomBounce 1.5s ease-in-out infinite;
-}
-@keyframes zoomBounce {
-  0%,100% { transform: scale(1); }
-  50% { transform: scale(1.3); }
-}
-.zoom-hint-text em {
-  color: #FFB800;
-  font-style: normal;
-  font-weight: 600;
-}
+
 
 /* ── ZOOM HINT ── */
 #zoomHint {
@@ -468,11 +428,8 @@ html, body {
   transition: opacity 0.4s ease;
 }
 #zoomHint.visible { opacity: 1; }
-#zoomHint .zh-icon { font-size: 16px; animation: zhFloat 2s ease-in-out infinite; }
-@keyframes zhFloat {
-  0%,100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
+#zoomHint .zh-icon { animation: zhFloat 2s ease-in-out infinite; display: inline-block; }
+@keyframes zhFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 #zoomHint em { color: #FFB800; font-style: normal; font-weight: 600; }
 </style>
 </head>
@@ -504,10 +461,6 @@ html, body {
 </div>
 
 
-<div class="zoom-hint" id="zoomHint">
-  <span class="zoom-hint-icon">🔍</span>
-  <span class="zoom-hint-text">Zoomez pour voir les <em>ombres</em></span>
-</div>
 <div id="zoomHint"><span class="zh-icon">☀️</span><span>Approchez pour voir les <em>ombres réelles</em></span></div>
 <div id="toast"></div>
 
@@ -715,6 +668,7 @@ function animLoop() {
     if (frameCount % 30 === 0 && map.isStyleLoaded()) {
       try { updateSunLightAt(renderedMins); } catch(e) {}
     }
+    if (isFarZoom) drawShadowOverlay();
   }
 
   rafId = requestAnimationFrame(animLoop);
@@ -892,7 +846,6 @@ setInterval(()=>{
   if(!dragging&&Math.abs(lm-mins)<=1){mins=lm;updateSliderUI();go();}
 },60000);
 
-window.addEventListener('resize', updateSliderUI);
 
 // ══════════════════════════════════════════
 // VENUES — add your partners here
@@ -1109,12 +1062,8 @@ document.getElementById('cardBackdrop').addEventListener('touchend', (e) => {
 // idle handler removed — rAF loop handles updates
 
 
-// ── ZOOM HINT ──────────────────────────────────────────────────
-// zoom hint managed by updateZoomStatew
-
-
-// ── DIRECTIONAL SHADOW OVERLAY (low zoom) + ZOOM HINT ────────────────
-const SHADOW_ZOOM_THRESHOLD = 14.5;
+// ── ZOOM HINT + DIRECTIONAL OVERLAY ───────────────────────────────
+const ZOOM_THRESHOLD = 14.5;
 const overlayCanvas = document.getElementById('shadowOverlay');
 const overlayCtx = overlayCanvas.getContext('2d');
 
@@ -1123,32 +1072,25 @@ function resizeOverlay() {
   overlayCanvas.height = window.innerHeight;
 }
 resizeOverlay();
-window.addEventListener('resize', resizeOverlay);
 
 function drawShadowOverlay() {
   const W = overlayCanvas.width, H = overlayCanvas.height;
   overlayCtx.clearRect(0, 0, W, H);
-
   const d = new Date();
   d.setHours(Math.floor(renderedMins/60), Math.floor(renderedMins%60), 0, 0);
   const pos = SunCalc.getPosition(d, lat, lng);
   const alt = pos.altitude * 180 / Math.PI;
   const az  = pos.azimuth  * 180 / Math.PI;
-
   if (alt <= -6) {
-    // Full night
     overlayCtx.fillStyle = 'rgba(5,10,30,0.55)';
     overlayCtx.fillRect(0, 0, W, H);
     return;
   }
   if (alt <= 0) {
-    const t = (alt + 6) / 6;
-    overlayCtx.fillStyle = `rgba(5,10,30,${0.45*(1-t)})`;
+    overlayCtx.fillStyle = `rgba(5,10,30,${0.45*(1-(alt+6)/6)})`;
     overlayCtx.fillRect(0, 0, W, H);
     return;
   }
-
-  // Directional gradient — shadow side darkened, sun side warm glow
   const shadowAngle = (az + 180) * Math.PI / 180;
   const canvasAngle = Math.PI/2 - shadowAngle;
   const strength = Math.max(0, Math.min(1, 1 - alt/60));
@@ -1156,7 +1098,6 @@ function drawShadowOverlay() {
   const cx = W/2, cy = H * 0.52;
   const ex = cx + Math.cos(canvasAngle) * len;
   const ey = cy + Math.sin(canvasAngle) * len;
-
   const g = overlayCtx.createLinearGradient(cx, cy, ex, ey);
   const a = strength * 0.38;
   g.addColorStop(0, 'rgba(5,10,30,0)');
@@ -1164,89 +1105,30 @@ function drawShadowOverlay() {
   g.addColorStop(1, `rgba(5,10,30,${a})`);
   overlayCtx.fillStyle = g;
   overlayCtx.fillRect(0, 0, W, H);
-
-  // Warm sun glow on sun side
   const sx = cx - Math.cos(canvasAngle)*len*0.4;
   const sy = cy - Math.sin(canvasAngle)*len*0.4;
   const sg = overlayCtx.createRadialGradient(sx,sy,0,sx,sy,len*0.55);
-  const wa = Math.min(0.07, alt/400);
-  sg.addColorStop(0, `rgba(255,200,60,${wa})`);
+  sg.addColorStop(0, `rgba(255,200,60,${Math.min(0.07,alt/400)})`);
   sg.addColorStop(1, 'rgba(255,200,60,0)');
   overlayCtx.fillStyle = sg;
   overlayCtx.fillRect(0, 0, W, H);
 }
 
+let isFarZoom = false;
 function updateZoomState() {
-  const zoom = map.getZoom();
-  const isClose = zoom >= SHADOW_ZOOM_THRESHOLD;
+  isFarZoom = map.getZoom() < ZOOM_THRESHOLD;
   const hint = document.getElementById('zoomHint');
-
-  if (isClose) {
-    // Close zoom: hide overlay, show real 3D shadows, hide hint
-    overlayCanvas.style.opacity = '0';
-    hint.classList.remove('visible');
-  } else {
-    // Far zoom: show directional overlay, show hint
-    drawShadowOverlay();
+  if (isFarZoom) {
     overlayCanvas.style.opacity = '1';
     hint.classList.add('visible');
+    drawShadowOverlay();
+  } else {
+    overlayCanvas.style.opacity = '0';
+    hint.classList.remove('visible');
   }
 }
 
-// Hook into existing animLoop — draw overlay when idle and far
-const _origAnimLoop = animLoop;
-let overlayFrameCount = 0;
-
-// Override: redraw overlay every 3 frames when far out
-const _checkOverlay = () => {
-  overlayFrameCount++;
-  if (overlayFrameCount % 3 === 0) {
-    const zoom = map.getZoom ? map.getZoom() : 16;
-    if (zoom < SHADOW_ZOOM_THRESHOLD) drawShadowOverlay();
-  }
-};
-
-// Patch go() to also update overlay
-const _origGo = go;
-// We can't override go directly — instead hook into slider update
-document.getElementById('sliderTrack').addEventListener('touchmove', _checkOverlay, {passive:true});
-document.getElementById('sliderTrack').addEventListener('mousemove', _checkOverlay);
-
 map.on('zoom', updateZoomState);
 map.on('zoomend', updateZoomState);
-map.on('move', () => {
-  if (map.getZoom() < SHADOW_ZOOM_THRESHOLD) drawShadowOverlay();
-});
-
-</script>
-
-<div id="cardBackdrop"></div>
-<!-- Venue card -->
-<div class="venue-card" id="venueCard">
-  <div class="card-handle"></div>
-  <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
-  <div class="venue-card-header" id="vcHeader">
-    <img id="vcPhoto" class="venue-card-photo venue-card-photo-placeholder" src="" alt="">
-    <div class="venue-card-header-inner">
-      <div class="venue-card-status">
-        <div class="status-dot sun" id="vcDot"></div>
-        <span class="venue-status-txt sun" id="vcStatus">☀️ In the sun now</span>
-      </div>
-      <div class="venue-name" id="vcName">–</div>
-      <div class="venue-type" id="vcType">–</div>
-    </div>
-  </div>
-  <div class="venue-card-body">
-    <div class="sun-schedule">
-      <div class="sun-schedule-title">Sunny hours today</div>
-      <div class="sun-slots" id="vcSlots"></div>
-    </div>
-    <div class="venue-cta">
-      <button class="btn-directions" id="vcDir">🗺️ Directions</button>
-      <button class="btn-reserve" id="vcRes">Reserve →</button>
-    </div>
-  </div>
-</div>
-
-</body>
-</html>
+map.on('move', () => { if (isFarZoom) drawShadowOverlay(); });
+window.addEventListener('resize', () => { resizeOverlay(); updateSliderUI(); });
