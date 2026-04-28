@@ -542,7 +542,7 @@ let toastTmt, acTimeout, dragging = false;
 // ── MAP
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/dark-v11',
+  style: 'mapbox://styles/mapbox/standard',
   center: [lng, lat],
   zoom: 16,
   pitch: 45,
@@ -580,8 +580,10 @@ function updateSunLightAt(m) {
   const alt = toDeg(pos.altitude);
   const az  = toDeg(pos.azimuth);
 
-  // Mapbox v2 setLight position: [radial, azimuthal_deg, polar_deg]
-  // azimuthal: 0=east, CCW. SunCalc az 0=south → bearing = az+180 from N → mapbox = 90-(az+180)
+  // Mapbox Standard v3: use setConfigProperty for persistent lighting
+  // 'lightPreset' controls the overall look, 'show3dObjects' enables buildings+shadows
+  // Choose light preset based on sun altitude
+  // azimuthal: SunCalc 0=south → mapbox azimuthal from east CCW
   const mapboxAz = ((-90 - az) % 360 + 360) % 360;
   const polar    = Math.max(1, Math.min(90, 90 - alt));
 
@@ -593,25 +595,23 @@ function updateSunLightAt(m) {
     color = `hsl(25, 40%, ${15 + t*20}%)`; intensity = 0.1 + t * 0.3;
   } else if (alt < 15) {
     const t = alt / 15;
-    color = `hsl(${35 + t*10}, ${80-t*20}%, ${55+t*15}%)`; intensity = 0.4 + t * 0.4;
+    color = `hsl(${35 + t*10}, ${80 - t*20}%, ${55 + t*15}%)`; intensity = 0.4 + t * 0.4;
   } else {
     color = '#fff8f0'; intensity = 0.85;
   }
 
   try {
-    map.setLight({
-      anchor: 'map',
-      color: color,
-      intensity: intensity,
-      position: [1.5, mapboxAz, polar],
-    });
+    map.setLights([
+      { id: 'ambient', type: 'ambient',     properties: { color: color, intensity: intensity * 0.4 } },
+      { id: 'sun',     type: 'directional', properties: {
+        color: color,
+        intensity: intensity,
+        direction: [mapboxAz, polar],
+        'shadow-intensity': alt > 0 ? Math.min(1, alt / 30 + 0.3) : 0,
+        'cast-shadows': true,
+      }},
+    ]);
   } catch(e) {}
-
-  // Building color based on time of day
-  if (map.getLayer('3d-buildings')) {
-    const buildColor = alt < -6 ? '#0a0f1a' : alt < 15 ? '#1a2035' : '#aaa';
-    try { map.setPaintProperty('3d-buildings', 'fill-extrusion-color', buildColor); } catch(e) {}
-  }
 }
 
 function updateSunLight() { updateSunLightAt(mins); }
@@ -721,25 +721,11 @@ function go() {
 
 // ── MAP LOAD
 map.on('style.load', async () => {
-  // Add 3D buildings layer
-  if (!map.getLayer('3d-buildings')) {
-    map.addLayer({
-      id: '3d-buildings',
-      source: 'composite',
-      'source-layer': 'building',
-      filter: ['==', 'extrude', 'true'],
-      type: 'fill-extrusion',
-      minzoom: 14,
-      paint: {
-        'fill-extrusion-color': '#aaa',
-        'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 14, 0, 14.5, ['get', 'height']],
-        'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 14, 0, 14.5, ['get', 'min_height']],
-        'fill-extrusion-opacity': 0.8,
-        'fill-extrusion-ambient-occlusion-intensity': 0.5,
-      }
-    });
-  }
-
+  // Set once — persists across zooms
+  try {
+    map.setConfigProperty('basemap', 'show3dObjects', true);
+    map.setConfigProperty('basemap', 'lightPreset', 'day');
+  } catch(e) {}
   updateSliderUI();
   go();
   startAnimLoop();
