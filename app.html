@@ -678,38 +678,36 @@ function updateStatus() {
 }
 
 // ── ANIMATION LOOP ──────────────────────────────────────────────────
-// targetMins = slider value (jumps instantly)
-// renderedMins = what's actually rendered (interpolates toward target)
 let targetMins = mins;
 let renderedMins = mins;
 let rafId = null;
-let isAnimating = false;
 
-function startAnimLoop() {
-  if (isAnimating) return;
-  isAnimating = true;
-  function frame() {
-    const diff = targetMins - renderedMins;
-    if (Math.abs(diff) < 0.05) {
-      // Close enough — snap and stop
-      renderedMins = targetMins;
-      updateSunLightAt(renderedMins);
-      isAnimating = false;
-      return;
+// Single persistent rAF loop — never stops, never gets stuck
+function animLoop() {
+  const diff = targetMins - renderedMins;
+
+  if (Math.abs(diff) > 0.02) {
+    renderedMins += diff * 0.15;
+    if (map.isStyleLoaded()) {
+      try { updateSunLightAt(renderedMins); } catch(e) {}
     }
-    // Exponential ease — fast start, smooth finish
-    renderedMins += diff * 0.18;
-    updateSunLightAt(renderedMins);
-    rafId = requestAnimationFrame(frame);
+  } else {
+    renderedMins = targetMins;
   }
-  rafId = requestAnimationFrame(frame);
+
+  rafId = requestAnimationFrame(animLoop);
+}
+
+// Start the loop once — runs forever
+function startAnimLoop() {
+  if (rafId) return; // already running
+  rafId = requestAnimationFrame(animLoop);
 }
 
 function go() {
   updateStatus();
   updateVenuePins();
   targetMins = mins;
-  startAnimLoop();
 }
 
 // ── MAP LOAD
@@ -717,6 +715,7 @@ map.on('style.load', async () => {
   map.setConfigProperty('basemap', 'show3dObjects', true);
   updateSliderUI();
   go();
+  startAnimLoop(); // start persistent rAF loop
   // Load venues from Supabase then add markers
   VENUES = await loadVenues();
   addVenueMarkers();
