@@ -3,86 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LitSpot — Find Sunny Spots & Sun-Lit Terraces Near You</title>
-
-<!-- SEO -->
-<meta name="description" content="LitSpot shows you exactly where the sun shines right now — and all day. See real building shadows on a live map. Find the sunniest terrace, park or street near you.">
-<meta name="keywords" content="sunny spot, find sun, sunny terrace, shadow map, where is the sun, sun position map, sunniest place, terrace in the sun, building shadows">
-<meta name="author" content="LitSpot">
-<meta name="robots" content="index, follow">
-<link rel="canonical" href="https://litspot.app/">
-
-<!-- Open Graph (réseaux sociaux) -->
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://litspot.app/">
-<meta property="og:title" content="LitSpot — Find Sunny Terraces Near You">
-<meta property="og:description" content="Real-time shadow map with 3D buildings. See where the sun shines, block by block, any time of day.">
-<meta property="og:image" content="https://litspot.app/og-image.jpg">
-<meta property="og:locale" content="en_US">
-
-<!-- Twitter Card -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="LitSpot — Find Sunny Terraces Near You">
-<meta name="twitter:description" content="Real-time shadow map with 3D buildings. See where the sun shines, block by block.">
-<meta name="twitter:image" content="https://litspot.app/og-image.jpg">
-
-<!-- Structured Data -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  "name": "LitSpot",
-  "url": "https://litspot.app",
-  "description": "Real-time sun and shadow map for finding sunny terraces and outdoor spots, using 3D building data and precise solar position calculations.",
-  "applicationCategory": "TravelApplication",
-  "operatingSystem": "Any",
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-  "featureList": [
-    "Real-time building shadow simulation",
-    "Precise solar position calculation",
-    "3D building map",
-    "Time-of-day slider",
-    "Location search"
-  ]
-}
-</script>
+<title>LitSpot — Trouve le soleil à Montréal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 <style>
-/* ── RESET ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   height: 100%; height: 100dvh;
   overflow: hidden;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'DM Sans', sans-serif;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
 }
 #map { position: absolute; inset: 0; }
 
-/* Mapbox controls — push above safe area */
-.mapboxgl-ctrl-group {
-  background: rgba(255,255,255,0.92) !important;
-  border: 1px solid rgba(0,0,0,0.08) !important;
-}
-.mapboxgl-ctrl-attrib { font-size: 9px !important; }
-.mapboxgl-ctrl-bottom-right {
-  bottom: calc(env(safe-area-inset-bottom) + 16px) !important;
-  right: 12px !important;
-}
-
-/* ── SEARCH BAR ── */
+/* ── SEARCH ── */
 .top-bar {
   position: absolute;
   top: calc(env(safe-area-inset-top) + 12px);
   left: 12px; right: 12px;
   z-index: 100;
-  display: flex;
-  gap: 10px;
-  align-items: center;
+  display: flex; gap: 10px; align-items: center;
 }
 .search-wrap { position: relative; flex: 1; }
 #searchInput {
@@ -91,9 +34,8 @@ html, body {
   border: 1.5px solid rgba(0,0,0,0.08);
   border-radius: 14px;
   padding: 14px 44px 14px 16px;
-  font-family: 'Outfit', sans-serif;
-  font-size: 16px; /* 16px prevents iOS zoom on focus */
-  color: #1a1a2e;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px; color: #1a1a2e;
   outline: none;
   box-shadow: 0 4px 20px rgba(0,0,0,0.12);
   -webkit-appearance: none;
@@ -116,60 +58,37 @@ html, body {
   display: none;
 }
 @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
-@keyframes pinDrop { from { transform: translateY(-20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
-
 #ac-list {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0; right: 0;
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
   background: rgba(255,255,255,0.99);
   border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 14px;
-  overflow: hidden;
+  border-radius: 14px; overflow: hidden;
   box-shadow: 0 12px 36px rgba(0,0,0,0.14);
-  z-index: 500;
-  display: none;
+  z-index: 500; display: none;
 }
-.ac-item {
-  padding: 14px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid rgba(0,0,0,0.04);
-  -webkit-tap-highlight-color: rgba(232,137,12,0.1);
-}
+.ac-item { padding: 14px 16px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.04); }
 .ac-item:last-child { border-bottom: none; }
 .ac-item:active { background: rgba(232,137,12,0.08); }
 .ac-name { font-size: 15px; font-weight: 500; color: #1a1a2e; }
 .ac-addr { font-size: 12px; color: rgba(0,0,0,0.35); margin-top: 3px; }
-
 .geo-btn {
-  width: 52px; height: 52px;
-  border-radius: 14px; flex-shrink: 0;
+  width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0;
   background: rgba(255,255,255,0.97);
   border: 1.5px solid rgba(0,0,0,0.08);
   display: flex; align-items: center; justify-content: center;
   font-size: 22px; cursor: pointer;
   box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-  -webkit-tap-highlight-color: transparent;
 }
 .geo-btn:active { background: rgba(232,137,12,0.12); }
 
 /* ── TIME PILL ── */
 .time-pill {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
   z-index: 100;
-  background: rgba(28,20,16,0.92);
+  background: rgba(28,20,16,0.90);
   border: 1px solid rgba(255,240,220,0.14);
-  border-radius: 22px;
-  padding: 14px 0;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  border-radius: 22px; padding: 14px 0;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
   width: 56px;
   transition: opacity 0.3s ease;
@@ -177,69 +96,62 @@ html, body {
 .pill-time {
   font-family: 'Cormorant Garamond', serif;
   font-size: 17px; font-weight: 600;
-  color: #FFF5E6; letter-spacing: -0.5px;
-  line-height: 1; text-align: center;
-  white-space: nowrap; width: 100%;
+  color: #fff; letter-spacing: -0.5px;
+  text-align: center; white-space: nowrap; width: 100%;
 }
-.pill-status {
-  font-size: 18px; line-height: 1;
-  width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
+.pill-status { font-size: 18px; line-height: 1; }
 .slider-track {
-  position: relative;
-  width: 4px; height: 130px;
-  background: rgba(255,240,220,0.14);
-  border-radius: 2px;
-  cursor: pointer;
-  touch-action: none;
+  position: relative; width: 4px; height: 130px;
+  background: rgba(255,255,255,0.12); border-radius: 2px;
+  cursor: pointer; touch-action: none;
 }
 .slider-fill {
   position: absolute; bottom: 0; left: 0; right: 0;
   background: #E8890C; border-radius: 2px;
 }
 .slider-thumb {
-  position: absolute; left: 50%;
-  transform: translateX(-50%);
+  position: absolute; left: 50%; transform: translateX(-50%);
   width: 22px; height: 22px;
   background: radial-gradient(circle at 38% 38%, #FFE07A, #E8890C);
   border-radius: 50%;
   box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5);
 }
 
-
-
 /* ── VENUE PINS ── */
-.venue-pin {
+.venue-pin-wrap {
   width: 44px; height: 44px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px;
-  border: 3px solid #fff;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-  flex-shrink: 0;
+  position: relative; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
+  flex-shrink: 0;
 }
-.venue-pin.in-sun {
-  background: #FFB800;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 4px rgba(232,137,12,0.3);
-  animation: pinPulse 2s ease-in-out infinite;
+.venue-pin-wrap.in-sun::before {
+  content: '';
+  position: absolute; inset: -6px;
+  border-radius: 50%;
+  background: rgba(255,184,0,0.2);
+  animation: ringPulse 2.5s ease-in-out infinite;
+  pointer-events: none;
 }
+@keyframes ringPulse {
+  0%,100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.4); opacity: 0; }
+}
+.venue-pin {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; border: 3px solid #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+  position: relative; z-index: 1;
+  will-change: transform; transform: translateZ(0);
+}
+.venue-pin.in-sun { background: #FFB800; }
 .venue-pin.in-shade { background: #6b88b5; }
-@keyframes pinPulse {
-  0%,100% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 4px rgba(232,137,12,0.3); }
-  50% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 10px rgba(232,137,12,0); }
-}
 
-/* ── VENUE CARD — bottom sheet on mobile ── */
+/* ── VENUE CARD ── */
 .venue-card {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
+  position: absolute; bottom: 0; left: 0; right: 0;
   z-index: 1000;
   background: #FFFFFF;
-  opacity: 1;
   border: 1px solid rgba(0,0,0,0.06);
   border-radius: 24px 24px 0 0;
   overflow: hidden;
@@ -249,51 +161,17 @@ html, body {
   pointer-events: none;
   padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
 }
-.venue-card.visible {
-  transform: translateY(0);
-  pointer-events: all;
-}
-
-/* drag handle */
+.venue-card.visible { transform: translateY(0); pointer-events: all; }
 .card-handle {
-  width: 36px; height: 4px;
-  background: rgba(0,0,0,0.12);
-  border-radius: 2px;
-  margin: 12px auto 0;
+  width: 36px; height: 4px; background: rgba(0,0,0,0.12);
+  border-radius: 2px; margin: 12px auto 0;
 }
-
-.venue-card-photo {
-  width: 100%; height: 140px;
-  object-fit: cover;
-  display: block;
-}
-.venue-card-photo-placeholder { display: none; }
 .venue-card-header {
   padding: 10px 20px 10px;
   border-bottom: 1px solid rgba(0,0,0,0.06);
 }
-/* When photo present, overlay name on image */
-.venue-card.has-photo .venue-card-header {
-  position: relative;
-  padding: 0;
-  border-bottom: none;
-}
-.venue-card.has-photo .venue-card-header-inner {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  padding: 12px 20px 14px;
-  background: linear-gradient(transparent, rgba(28,20,16,0.95));
-}
-.venue-card:not(.has-photo) .venue-card-header-inner {
-  padding: 12px 20px 14px;
-}
-.venue-card-status {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 6px;
-}
-.status-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-}
+.venue-card-status { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .status-dot.sun { background: #E8890C; box-shadow: 0 0 6px rgba(232,137,12,0.7); }
 .status-dot.shade { background: #b0a090; }
 .venue-status-txt { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
@@ -303,12 +181,11 @@ html, body {
   font-family: 'Cormorant Garamond', serif;
   font-size: 22px; font-weight: 600; color: #1a0e08; margin-bottom: 2px;
 }
-.venue-type { font-size: 13px; color: rgba(28,20,16,0.55); font-weight: 400; }
+.venue-type { font-size: 13px; color: rgba(28,20,16,0.55); }
 
 .venue-card-body { padding: 10px 20px 14px; }
 .sun-schedule {
-  background: #FFF3E0;
-  border: 1px solid rgba(232,137,12,0.15);
+  background: #FFF3E0; border: 1px solid rgba(232,137,12,0.15);
   border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
 }
 .sun-schedule-title {
@@ -317,116 +194,92 @@ html, body {
 }
 .sun-slots { display: flex; flex-direction: column; gap: 10px; }
 .sun-slot { display: flex; flex-direction: column; gap: 6px; }
-.slot-times {
-  display: flex; justify-content: space-between; align-items: center;
-}
-.slot-time-label {
-  font-size: 13px; font-weight: 600; color: #E8890C;
-}
+.slot-times { display: flex; justify-content: space-between; align-items: center; }
+.slot-time-label { font-size: 13px; font-weight: 600; color: #E8890C; }
 .slot-arrow { font-size: 11px; color: rgba(28,20,16,0.25); }
 .slot-bar-wrap {
   position: relative; height: 6px; border-radius: 3px;
   background: rgba(28,20,16,0.08);
 }
-.slot-fill {
-  position: absolute; top: 0; height: 100%;
-  border-radius: 3px; background: #E8890C;
-}
+.slot-fill { position: absolute; top: 0; height: 100%; border-radius: 3px; background: #E8890C; }
 .slot-now-line {
   position: absolute; top: -3px; width: 2px; height: 12px;
   background: #fff; border-radius: 1px; opacity: 0.8;
 }
 .slot-day-labels {
   display: flex; justify-content: space-between;
-  font-size: 9px; color: rgba(28,20,16,0.45);
-  margin-top: 2px;
+  font-size: 9px; color: rgba(28,20,16,0.45); margin-top: 2px;
 }
 
 .venue-cta { display: flex; gap: 10px; }
 .btn-directions, .btn-reserve {
   flex: 1; padding: 14px 10px; border-radius: 14px;
-  font-size: 14px; font-weight: 600;
-  cursor: pointer; text-align: center;
-  font-family: 'Outfit', sans-serif;
-  -webkit-tap-highlight-color: transparent;
-  border: none;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  text-align: center; font-family: 'DM Sans', sans-serif;
+  -webkit-tap-highlight-color: transparent; border: none;
 }
 .btn-directions {
-  background: #f5f0eb;
-  border: 1.5px solid rgba(0,0,0,0.12);
+  background: #f5f0eb; border: 1.5px solid rgba(0,0,0,0.12);
   color: rgba(28,20,16,0.8);
-  font-family: 'Outfit', sans-serif;
-  font-weight: 600;
 }
 .btn-directions:active { background: #ece6df; }
-.btn-reserve { background: #E8890C; color: #0d1117; }
+.btn-reserve { background: #E8890C; color: #fff; }
 .btn-reserve:active { background: #FFA928; }
 
+/* ── CARD CLOSE ── */
 .venue-card-close {
   position: absolute; top: 14px; right: 14px;
   width: 36px; height: 36px; border-radius: 50%;
-  background: rgba(28,20,16,0.12); border: none;
-  color: #1C1410; font-size: 16px; font-weight: 700; line-height: 1;
+  background: rgba(0,0,0,0.08); border: none;
+  color: #1C1410; font-size: 16px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; z-index: 2000;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
 }
-.venue-card-close:active { background: rgba(28,20,16,0.2); }
+.venue-card-close:active { background: rgba(0,0,0,0.15); }
 
-/* ── CARD BACKDROP ── */
+/* ── BACKDROP ── */
 #cardBackdrop {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 999;
+  display: none; position: fixed; inset: 0; z-index: 999;
   background: transparent;
 }
 #cardBackdrop.visible { display: block; }
 
-/* ── TOAST ── */
-#toast {
-  position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 20px);
-  left: 50%; transform: translateX(-50%) translateY(8px);
-  background: rgba(28,20,16,0.95);
-  border: 1px solid rgba(0,0,0,0.06);
-  border-radius: 12px; padding: 10px 20px;
-  font-size: 14px; color: #FFF5E6;
-  z-index: 500; pointer-events: none; opacity: 0;
-  transition: opacity .25s, transform .25s;
-  white-space: nowrap; max-width: calc(100vw - 32px);
-}
-#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* Rotation hint */
-
-
-
-
-
+/* ── ZOOM HINT ── */
 #zoomHint {
   position: fixed; bottom: 32px; left: 50%;
   transform: translateX(-50%);
   z-index: 200;
   background: rgba(28,20,16,0.88);
   border: 1px solid rgba(255,184,0,0.25);
-  border-radius: 50px;
-  padding: 10px 22px;
-  font-size: 13px;
-  color: rgba(255,245,230,0.9);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s;
-  white-space: nowrap;
+  border-radius: 50px; padding: 10px 22px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: rgba(255,245,230,0.9);
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.4s ease;
 }
 #zoomHint.visible { opacity: 1; }
 #zoomHint em { color: #FFB800; font-style: normal; font-weight: 600; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: calc(env(safe-area-inset-bottom) + 20px);
+  left: 50%; transform: translateX(-50%) translateY(8px);
+  background: rgba(28,20,16,0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 10px 20px;
+  font-size: 14px; color: #fff;
+  z-index: 500; pointer-events: none; opacity: 0;
+  transition: opacity .25s, transform .25s;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
+<div id="cardBackdrop"></div>
 
 <!-- Search -->
 <div class="top-bar">
@@ -440,60 +293,58 @@ html, body {
 </div>
 
 <!-- Time pill -->
-<div class="time-pill">
+<div class="time-pill" id="timePill">
   <div class="pill-time" id="timeTxt">12:00</div>
   <div class="pill-status" id="statusEmoji">☀️</div>
   <div class="slider-track" id="sliderTrack">
     <div class="slider-fill" id="sliderFill"></div>
     <div class="slider-thumb" id="sliderThumb"></div>
   </div>
-
 </div>
 
-
+<!-- Zoom hint -->
 <div id="zoomHint">☀️ &nbsp;Approchez pour voir les <em>ombres réelles</em></div>
+
+<!-- Venue card -->
+<div class="venue-card" id="venueCard">
+  <div class="card-handle"></div>
+  <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
+  <div class="venue-card-header">
+    <div class="venue-card-status">
+      <div class="status-dot sun" id="vcDot"></div>
+      <span class="venue-status-txt sun" id="vcStatus">☀️ In the sun now</span>
+    </div>
+    <div class="venue-name" id="vcName">–</div>
+    <div class="venue-type" id="vcType">–</div>
+  </div>
+  <div class="venue-card-body">
+    <div class="sun-schedule">
+      <div class="sun-schedule-title">Sunny hours today</div>
+      <div class="sun-slots" id="vcSlots"></div>
+    </div>
+    <div class="venue-cta">
+      <button class="btn-directions" id="vcDir">🗺️ Directions</button>
+      <button class="btn-reserve" id="vcRes">Reserve →</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
-
+// ── CONFIG
 const SUPABASE_URL = 'https://dogontqbkihwircaldie.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ29udHFia2lod2lyY2FsZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTI3ODYsImV4cCI6MjA5Mjg2ODc4Nn0.5tvkp_zIEMZS8TM1PIYBuEJyBRIIvaTPzU3j9OTbMAA';
-
-async function loadVenues() {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?active=eq.true&select=*`, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-      }
-    });
-    const data = await res.json();
-    // Convert snake_case to camelCase to match existing code
-    return data.map(v => ({
-      id: v.id,
-      name: v.name,
-      type: v.type,
-      emoji: v.emoji,
-      lng: v.lng,
-      lat: v.lat,
-      reserveUrl: v.reserve_url,
-      directionsUrl: v.directions_url,
-      sunWindows: v.sun_windows,
-      photoUrl: v.photo_url || null,
-      active: v.active,
-    }));
-  } catch (e) {
-    console.error('Supabase error:', e);
-    return [];
-  }
-}
-
 mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
 
+// ── STATE
 let lat = 45.5088, lng = -73.5878;
 let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
-let toastTmt, acTimeout, dragging = false;
+let VENUES = [];
+let venueMarkers = {};
+let currentVenue = null;
+let toastTmt, acTimeout;
 
 // ── MAP
 const map = new mapboxgl.Map({
@@ -505,15 +356,6 @@ const map = new mapboxgl.Map({
   antialias: true,
 });
 
-// Auto-detect user position for better search results
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(p => {
-    userLat = p.coords.latitude;
-    userLng = p.coords.longitude;
-  }, () => {});
-}
-map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
-
 // ── SOLAR
 function getDate() {
   const d = new Date();
@@ -521,221 +363,299 @@ function getDate() {
   d.setHours(~~(mins/60), mins%60, 0, 0);
   return d;
 }
-function sunPos()   { return SunCalc.getPosition(getDate(), lat, lng); }
-function sunTimes() { return SunCalc.getTimes(new Date(), lat, lng); }
-function fmt(d)     { return (!d||isNaN(d)) ? '–' : d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}); }
-function toDeg(r)   { return r * 180 / Math.PI; }
+function toDeg(r) { return r * 180 / Math.PI; }
 
 // ── SUN LIGHT
-function updateSunLightAt(m) {
+function updateSunLight() {
   if (!map.isStyleLoaded()) return;
-
-  const d = new Date();
-  d.setHours(Math.floor(m / 60), Math.floor(m % 60), Math.round((m % 1) * 60), 0);
-  const pos = SunCalc.getPosition(d, lat, lng);
+  const pos = SunCalc.getPosition(getDate(), lat, lng);
   const alt = toDeg(pos.altitude);
   const az  = toDeg(pos.azimuth);
-
-  // Mapbox Standard v3: use setConfigProperty for persistent lighting
-  // 'lightPreset' controls the overall look, 'show3dObjects' enables buildings+shadows
-  // Choose light preset based on sun altitude
-  // azimuthal: SunCalc 0=south → mapbox azimuthal from east CCW
   const mapboxAz = ((-90 - az) % 360 + 360) % 360;
-  const polar    = Math.max(1, Math.min(90, 90 - alt));
+  const polar = Math.max(1, Math.min(90, 90 - alt));
 
-  let color, intensity;
+  let color, intensity, shadowInt;
   if (alt < -6) {
-    color = '#070d1f'; intensity = 0.05;
+    color = '#070d1f'; intensity = 0.05; shadowInt = 0;
   } else if (alt <= 0) {
     const t = (alt + 6) / 6;
-    color = `hsl(25, 40%, ${15 + t*20}%)`; intensity = 0.1 + t * 0.3;
+    color = `hsl(25, 40%, ${15 + t*20}%)`; intensity = 0.1 + t*0.3; shadowInt = 0;
   } else if (alt < 15) {
     const t = alt / 15;
-    color = `hsl(${35 + t*10}, ${80 - t*20}%, ${55 + t*15}%)`; intensity = 0.4 + t * 0.4;
+    color = `hsl(${35+t*10}, ${80-t*20}%, ${55+t*15}%)`; intensity = 0.7+t*0.3; shadowInt = 1.0;
   } else {
-    color = '#fff8f0'; intensity = 0.85;
+    color = '#fff8f0'; intensity = 1.0; shadowInt = 1.0;
   }
 
   try {
+    map.setConfigProperty('basemap', 'show3dObjects', true);
     map.setLights([
-      { id: 'ambient', type: 'ambient',     properties: { color: color, intensity: intensity * 0.4 } },
-      { id: 'sun',     type: 'directional', properties: {
-        color: color,
-        intensity: intensity,
+      { id: 'ambient', type: 'ambient', properties: { color: color, intensity: intensity * 0.25 } },
+      { id: 'sun', type: 'directional', properties: {
+        color: color, intensity: intensity,
         direction: [mapboxAz, polar],
-        'shadow-intensity': alt > 0 ? Math.min(1, alt / 30 + 0.3) : 0,
+        'shadow-intensity': shadowInt,
         'cast-shadows': true,
       }},
     ]);
   } catch(e) {}
 }
 
-function updateSunLight() { updateSunLightAt(mins); }
-
-// ── SLIDER (custom vertical — plus fiable que input[type=range] vertical)
-const track = document.getElementById('sliderTrack');
-const fill  = document.getElementById('sliderFill');
-const thumb = document.getElementById('sliderThumb');
-
-function updateSliderUI() {
-  const pct = mins / 1439; // 0=00h, 1=23h59
-  const trackH = track.offsetHeight;
-  const thumbH = thumb.offsetHeight;
-  const pos = (1 - pct) * (trackH - thumbH); // 0h en bas, 23h en haut
-  thumb.style.top = pos + 'px';
-  fill.style.height = (pct * trackH) + 'px';
-}
-
-function pxToMins(clientY) {
-  const rect = track.getBoundingClientRect();
-  const pct = 1 - Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-  return Math.round(pct * 1439);
-}
-
-track.addEventListener('mousedown', e => {
-  dragging = true;
-  mins = pxToMins(e.clientY);
-  updateSliderUI(); go();
-  e.preventDefault();
-});
-document.addEventListener('mousemove', e => {
-  if (!dragging) return;
-  mins = pxToMins(e.clientY);
-  updateSliderUI(); go();
-});
-document.addEventListener('mouseup', () => { dragging = false; });
-
-// Touch
-track.addEventListener('touchstart', e => {
-  dragging = true;
-  mins = pxToMins(e.touches[0].clientY);
-  updateSliderUI(); go();
-  e.preventDefault();
-}, { passive: false });
-document.addEventListener('touchmove', e => {
-  if (!dragging) return;
-  mins = pxToMins(e.touches[0].clientY);
-  updateSliderUI(); go();
-}, { passive: false });
-document.addEventListener('touchend', () => { dragging = false; });
-
-// ── STATUS
-function updateStatus() {
-  const alt = toDeg(sunPos().altitude);
-  const emoji = document.getElementById('statusEmoji');
-  if      (alt < -6)  emoji.textContent = '🌙';
-  else if (alt <= 0)  emoji.textContent = '🌅';
-  else if (alt < 10)  emoji.textContent = '🌤️';
-  else                emoji.textContent = '☀️';
-
-  const h = String(~~(mins/60)).padStart(2,'0');
-  const m = String(mins%60).padStart(2,'0');
-  document.getElementById('timeTxt').textContent = h + ':' + m;
-
-}
-
-// ── ANIMATION LOOP ──────────────────────────────────────────────────
+// ── ANIMATION LOOP
 let targetMins = mins;
 let renderedMins = mins;
 let rafId = null;
-
-// Single persistent rAF loop — never stops, never gets stuck
 let frameCount = 0;
+
 function animLoop() {
   frameCount++;
   const diff = targetMins - renderedMins;
-
   if (Math.abs(diff) > 0.02) {
-    // Actively animating — update every frame
     renderedMins += diff * 0.15;
-    if (map.isStyleLoaded()) {
-      try { updateSunLightAt(renderedMins); } catch(e) {}
-    }
+    if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
   } else {
     renderedMins = targetMins;
-    // Not animating — but still re-apply every 60 frames (~1s)
-    // to recover from Mapbox style reloads that reset lights
     if (frameCount % 30 === 0 && map.isStyleLoaded()) {
-      try { updateSunLightAt(renderedMins); } catch(e) {}
+      try { updateSunLight(); } catch(e) {}
     }
   }
-
   rafId = requestAnimationFrame(animLoop);
 }
 
-// Start the loop once — runs forever
-function startAnimLoop() {
-  if (rafId) return; // already running
-  rafId = requestAnimationFrame(animLoop);
-}
-
-function go() {
-  updateStatus();
-  updateVenuePins();
-  targetMins = mins;
-}
-
-// ── MAP LOAD
-map.on('style.load', async () => {
-  // Set once — persists across zooms
+function updateSunLightAt(m) {
+  if (!map.isStyleLoaded()) return;
+  const d = new Date();
+  d.setHours(Math.floor(m/60), Math.floor(m%60), Math.round((m%1)*60), 0);
+  const pos = SunCalc.getPosition(d, lat, lng);
+  const alt = toDeg(pos.altitude);
+  const az = toDeg(pos.azimuth);
+  const mapboxAz = ((-90-az)%360+360)%360;
+  const polar = Math.max(1, Math.min(90, 90-alt));
+  let color, intensity, shadowInt;
+  if (alt < -6) { color='#070d1f'; intensity=0.05; shadowInt=0; }
+  else if (alt<=0) { const t=(alt+6)/6; color=`hsl(25,40%,${15+t*20}%)`; intensity=0.1+t*0.3; shadowInt=0; }
+  else if (alt<15) { const t=alt/15; color=`hsl(${35+t*10},${80-t*20}%,${55+t*15}%)`; intensity=0.7+t*0.3; shadowInt=1.0; }
+  else { color='#fff8f0'; intensity=1.0; shadowInt=1.0; }
   try {
-    map.setConfigProperty('basemap', 'show3dObjects', true);
-    map.setConfigProperty('basemap', 'lightPreset', 'day');
+    map.setLights([
+      { id:'ambient', type:'ambient', properties:{ color, intensity:intensity*0.25 } },
+      { id:'sun', type:'directional', properties:{ color, intensity, direction:[mapboxAz,polar], 'shadow-intensity':shadowInt, 'cast-shadows':true } },
+    ]);
   } catch(e) {}
-  updateSliderUI();
-  go();
-  startAnimLoop();
-  VENUES = await loadVenues();
-  addVenueMarkers();
-  // Show zoom hint if needed
-  checkZoom();
-});
-
-function checkZoom() {
-  const hint = document.getElementById('zoomHint');
-  if (map.getZoom() < 14.5) hint.classList.add('visible');
-  else hint.classList.remove('visible');
 }
-map.on('zoom', checkZoom);
 
+// ── SLIDER
+function updateSliderUI() {
+  const pct = mins / (24*60-1);
+  const trackH = document.getElementById('sliderTrack').offsetHeight;
+  const thumbH = 22;
+  const y = (1 - pct) * (trackH - thumbH);
+  document.getElementById('sliderThumb').style.top = y + 'px';
+  document.getElementById('sliderFill').style.height = ((1-pct)*100) + '%';
+  const h = String(~~(mins/60)).padStart(2,'0');
+  const m = String(mins%60).padStart(2,'0');
+  document.getElementById('timeTxt').textContent = h + ':' + m;
+  const pos = SunCalc.getPosition(getDate(), lat, lng);
+  document.getElementById('statusEmoji').textContent = toDeg(pos.altitude) > 0 ? '☀️' : '🌙';
+}
 
-// ── GEOLOC
-document.getElementById('geoBtn').addEventListener('click', () => {
-  if (!navigator.geolocation) return showToast('Not supported');
-  showToast('📡 Locating…');
-  navigator.geolocation.getCurrentPosition(p => {
-    lat = p.coords.latitude; lng = p.coords.longitude;
-    userLat = lat; userLng = lng;
-    map.flyTo({ center: [lng, lat], zoom: 16, duration: 1200 });
-    go(); showToast('🎯 Location found!');
-  }, () => showToast('❌ Access denied'));
+// ── SLIDER DRAG
+let dragging = false, dragStartY = 0, dragStartMins = 0;
+const track = document.getElementById('sliderTrack');
+
+function onDragStart(y) {
+  dragging = true;
+  dragStartY = y;
+  dragStartMins = mins;
+  document.getElementById('timePill').style.opacity = '1';
+}
+function onDragMove(y) {
+  if (!dragging) return;
+  const trackH = track.offsetHeight - 22;
+  const delta = (dragStartY - y) / trackH * (24*60-1);
+  mins = Math.max(0, Math.min(24*60-1, Math.round(dragStartMins + delta)));
+  targetMins = mins;
+  updateSliderUI();
+  updateVenuePins();
+}
+function onDragEnd() { dragging = false; }
+
+track.addEventListener('touchstart', e => onDragStart(e.touches[0].clientY), { passive: true });
+track.addEventListener('touchmove', e => { e.preventDefault(); onDragMove(e.touches[0].clientY); }, { passive: false });
+track.addEventListener('touchend', onDragEnd, { passive: true });
+track.addEventListener('mousedown', e => onDragStart(e.clientY));
+window.addEventListener('mousemove', e => { if (dragging) onDragMove(e.clientY); });
+window.addEventListener('mouseup', onDragEnd);
+
+// ── SUPABASE
+async function loadVenues() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?active=eq.true&select=*`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    const data = await res.json();
+    return data.map(v => ({
+      id: v.id, name: v.name, type: v.type, emoji: v.emoji,
+      lng: v.lng, lat: v.lat,
+      reserveUrl: v.reserve_url, directionsUrl: v.directions_url,
+      sunWindows: v.sun_windows, photoUrl: v.photo_url || null, active: v.active,
+    }));
+  } catch(e) { return []; }
+}
+
+// ── VENUE LOGIC
+function venueInSun(venue) {
+  if (!venue.sunWindows) return false;
+  const h = mins / 60;
+  return venue.sunWindows.some(([s, e]) => h >= s && h <= e);
+}
+
+function addVenueMarkers() {
+  VENUES.forEach(venue => {
+    const inSun = venueInSun(venue);
+    const wrap = document.createElement('div');
+    wrap.className = 'venue-pin-wrap ' + (inSun ? 'in-sun' : 'in-shade');
+    const el = document.createElement('div');
+    el.className = 'venue-pin ' + (inSun ? 'in-sun' : 'in-shade');
+    el.textContent = venue.emoji;
+    wrap.appendChild(el);
+    const marker = new mapboxgl.Marker({ element: wrap, anchor: 'center' })
+      .setLngLat([venue.lng, venue.lat]).addTo(map);
+    wrap.addEventListener('click', e => { e.stopPropagation(); openVenueCard(venue); });
+    venueMarkers[venue.id] = { marker, el, wrap };
+  });
+}
+
+function updateVenuePins() {
+  VENUES.forEach(venue => {
+    const v = venueMarkers[venue.id];
+    if (!v) return;
+    const inSun = venueInSun(venue);
+    v.el.className = 'venue-pin ' + (inSun ? 'in-sun' : 'in-shade');
+    v.wrap.className = 'venue-pin-wrap ' + (inSun ? 'in-sun' : 'in-shade');
+  });
+  if (currentVenue) updateVenueCard(currentVenue);
+}
+
+// ── VENUE CARD
+function closeVenueCard() {
+  document.getElementById('venueCard').classList.remove('visible');
+  document.getElementById('cardBackdrop').classList.remove('visible');
+  document.getElementById('timePill').style.opacity = '1';
+  document.getElementById('timePill').style.pointerEvents = '';
+  currentVenue = null;
+}
+
+function openVenueCard(venue) {
+  currentVenue = venue;
+  updateVenueCard(venue);
+  document.getElementById('venueCard').classList.add('visible');
+  document.getElementById('cardBackdrop').classList.add('visible');
+  document.getElementById('timePill').style.opacity = '0';
+  document.getElementById('timePill').style.pointerEvents = 'none';
+  map.flyTo({ center: [venue.lng, venue.lat], zoom: 16, duration: 800, offset: [0, -120], essential: true });
+}
+
+function updateVenueCard(venue) {
+  const inSun = venueInSun(venue);
+  document.getElementById('vcDot').className = 'status-dot ' + (inSun ? 'sun' : 'shade');
+  document.getElementById('vcStatus').className = 'venue-status-txt ' + (inSun ? 'sun' : 'shade');
+  document.getElementById('vcStatus').textContent = inSun ? '☀️ In the sun now' : '● In the shade';
+  document.getElementById('vcName').textContent = venue.name;
+  document.getElementById('vcType').textContent = venue.type;
+
+  // Photo
+  const card = document.getElementById('venueCard');
+  const existingPhoto = card.querySelector('.venue-card-photo');
+  if (existingPhoto) existingPhoto.remove();
+  if (venue.photoUrl) {
+    const img = document.createElement('img');
+    img.className = 'venue-card-photo';
+    img.src = venue.photoUrl;
+    img.style.cssText = 'width:100%;height:140px;object-fit:cover;display:block;';
+    card.querySelector('.venue-card-header').insertBefore(img, card.querySelector('.venue-card-header').firstChild);
+  }
+
+  // Sun slots
+  const DAY_START = 7, DAY_END = 21, DAY_SPAN = DAY_END - DAY_START;
+  const nowH = mins / 60;
+  const slotsEl = document.getElementById('vcSlots');
+  if (venue.sunWindows && venue.sunWindows.length) {
+    slotsEl.innerHTML = venue.sunWindows.map(([start, end]) => {
+      const fmt = h => `${String(Math.floor(h)).padStart(2,'0')}:${h%1===0.5?'30':'00'}`;
+      const left = Math.max(0, ((start-DAY_START)/DAY_SPAN)*100);
+      const width = Math.min(((end-start)/DAY_SPAN)*100, 100-left);
+      const nowPct = ((nowH-DAY_START)/DAY_SPAN)*100;
+      const showNow = nowH >= DAY_START && nowH <= DAY_END;
+      return `<div class="sun-slot">
+        <div class="slot-times">
+          <span class="slot-time-label">☀️ ${fmt(start)}</span>
+          <span class="slot-arrow">——</span>
+          <span class="slot-time-label">${fmt(end)} ☀️</span>
+        </div>
+        <div class="slot-bar-wrap">
+          <div class="slot-fill" style="left:${left}%;width:${width}%"></div>
+          ${showNow ? `<div class="slot-now-line" style="left:${nowPct}%"></div>` : ''}
+        </div>
+        <div class="slot-day-labels"><span>7h</span><span>14h</span><span>21h</span></div>
+      </div>`;
+    }).join('');
+  } else {
+    slotsEl.innerHTML = '<div style="font-size:13px;color:rgba(28,20,16,0.4)">Horaires non disponibles</div>';
+  }
+
+  document.getElementById('vcDir').onclick = () => venue.directionsUrl && window.open(venue.directionsUrl);
+  document.getElementById('vcRes').onclick = () => venue.reserveUrl && window.open(venue.reserveUrl);
+}
+
+// Backdrop closes card
+document.getElementById('cardBackdrop').addEventListener('click', closeVenueCard);
+
+// Swipe to close
+(function() {
+  const card = document.getElementById('venueCard');
+  let startY = 0, active = false, moved = 0;
+  card.addEventListener('touchstart', e => { startY = e.touches[0].clientY; active = true; moved = 0; card.style.transition = 'none'; }, { passive: true });
+  card.addEventListener('touchmove', e => { if (!active) return; moved = e.touches[0].clientY - startY; if (moved > 0) card.style.transform = `translateY(${moved}px)`; }, { passive: true });
+  card.addEventListener('touchend', () => { if (!active) return; active = false; card.style.transition = ''; if (moved > 70) closeVenueCard(); else card.style.transform = ''; }, { passive: true });
+})();
+
+// ── MAP CLICK
+map.on('click', e => {
+  if (document.getElementById('venueCard').classList.contains('visible')) return;
+  if (document.getElementById('searchMarker')) return;
+  lng = e.lngLat.lng; lat = e.lngLat.lat;
+  showToast('📍 Location updated');
 });
-
-
-
-
 
 // ── SEARCH
-const si=document.getElementById('searchInput'),acList=document.getElementById('ac-list'),spn=document.getElementById('spinner'),sico=document.querySelector('.s-icon');
+let searchMarker = null;
+const si = document.getElementById('searchInput');
+const acList = document.getElementById('ac-list');
+const spn = document.getElementById('spinner');
+const sico = document.querySelector('.s-icon');
+
 si.addEventListener('focus', () => {
-  document.querySelector('.time-pill').style.opacity = '0';
-  document.querySelector('.time-pill').style.pointerEvents = 'none';
+  document.getElementById('timePill').style.opacity = '0';
+  document.getElementById('timePill').style.pointerEvents = 'none';
 });
 si.addEventListener('blur', () => {
   setTimeout(() => {
-    document.querySelector('.time-pill').style.opacity = '1';
-    document.querySelector('.time-pill').style.pointerEvents = '';
+    if (!currentVenue) {
+      document.getElementById('timePill').style.opacity = '1';
+      document.getElementById('timePill').style.pointerEvents = '';
+    }
   }, 200);
 });
-si.addEventListener('input',()=>{
-  clearTimeout(acTimeout); const q=si.value.trim();
-  if(q.length<2){acList.style.display='none';return;}
-  acTimeout=setTimeout(()=>fetchPlaces(q),300);
+si.addEventListener('input', () => {
+  clearTimeout(acTimeout); const q = si.value.trim();
+  if (q.length < 2) { acList.style.display='none'; return; }
+  acTimeout = setTimeout(() => fetchPlaces(q), 300);
 });
-async function fetchPlaces(q){
+
+async function fetchPlaces(q) {
   spn.style.display='block'; sico.style.display='none';
   try {
-    // Mapbox Search Box API — built for POI (bars, restaurants, cafes...)
     const url = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${mapboxgl.accessToken}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${userLng||lng},${userLat||lat}`;
     const res = await fetch(url);
     const data = await res.json();
@@ -744,57 +664,6 @@ async function fetchPlaces(q){
   finally { spn.style.display='none'; sico.style.display='block'; }
 }
 
-// Search result marker
-let searchMarker = null;
-
-function showSearchPin(lngLat, name) {
-  // Remove previous pin
-  if (searchMarker) { searchMarker.remove(); searchMarker = null; }
-
-  // Create a classic Google Maps style pin
-  const el = document.createElement('div');
-  el.innerHTML = `
-    <div style="
-      display:flex;flex-direction:column;align-items:center;
-      animation: pinDrop 0.3s cubic-bezier(0.34,1.56,0.64,1);
-    ">
-      <div style="
-        background:#e74c3c;
-        width:32px;height:32px;border-radius:50% 50% 50% 0;
-        transform:rotate(-45deg);
-        border:3px solid #fff;
-        box-shadow:0 2px 8px rgba(0,0,0,0.3);
-        display:flex;align-items:center;justify-content:center;
-      ">
-        <div style="
-          width:10px;height:10px;background:#fff;
-          border-radius:50%;transform:rotate(45deg);
-        "></div>
-      </div>
-      <div style="
-        width:4px;height:4px;background:rgba(0,0,0,0.2);
-        border-radius:50%;margin-top:2px;
-        filter:blur(2px);
-      "></div>
-    </div>`;
-  el.style.cssText = 'cursor:default;';
-
-  searchMarker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-    .setLngLat(lngLat)
-    .addTo(map);
-}
-
-// Remove search pin on map click
-map.on('click', e => {
-  // Remove search pin
-  if (searchMarker) { searchMarker.remove(); searchMarker = null; }
-  // Don't update position if venue card is open
-  const card = document.getElementById('venueCard');
-  if (card.classList.contains('visible')) return;
-  lng = e.lngLat.lng; lat = e.lngLat.lat;
-  showToast('📍 Location updated');
-});
-
 async function selectPlace(mapboxId, name) {
   try {
     const url = `https://api.mapbox.com/search/searchbox/v1/retrieve/${mapboxId}?access_token=${mapboxgl.accessToken}&session_token=litspot-session`;
@@ -802,14 +671,15 @@ async function selectPlace(mapboxId, name) {
     const data = await res.json();
     const feat = data.features?.[0];
     if (!feat) return;
-    lng = feat.geometry.coordinates[0];
-    lat = feat.geometry.coordinates[1];
-    si.value = name;
-    acList.style.display = 'none';
+    lng = feat.geometry.coordinates[0]; lat = feat.geometry.coordinates[1];
+    si.value = name; acList.style.display = 'none';
     map.flyTo({ center: [lng, lat], zoom: 17, duration: 1000 });
-    // Show pin after flyTo lands
-    setTimeout(() => showSearchPin([lng, lat], name), 900);
-    go();
+    if (searchMarker) { searchMarker.remove(); searchMarker = null; }
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;animation:pinDrop 0.3s cubic-bezier(0.34,1.56,0.64,1)"><div style="background:#e74c3c;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center"><div style="width:10px;height:10px;background:#fff;border-radius:50%;transform:rotate(45deg)"></div></div></div>`;
+      searchMarker = new mapboxgl.Marker({ element: el, anchor: 'bottom' }).setLngLat([lng, lat]).addTo(map);
+    }, 900);
   } catch {}
 }
 
@@ -826,234 +696,65 @@ function renderAC(suggestions) {
   });
   acList.style.display = 'block';
 }
-document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))acList.style.display='none';});
-si.addEventListener('keydown',async e=>{
-  if(e.key!=='Enter')return;acList.style.display='none';
-  await fetchPlaces(si.value);const f=acList.querySelector('.ac-item');if(f)f.click();
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) acList.style.display = 'none';
 });
 
-function showToast(msg){
-  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
-  clearTimeout(toastTmt);toastTmt=setTimeout(()=>t.classList.remove('show'),2600);
-}
+map.on('click', () => { if (searchMarker) { searchMarker.remove(); searchMarker = null; } });
 
-// Live clock
-setInterval(()=>{
-  const n=new Date(),lm=n.getHours()*60+n.getMinutes();
-  if(!dragging&&Math.abs(lm-mins)<=1){mins=lm;updateSliderUI();go();}
-},60000);
+// ── GEOLOC
+navigator.geolocation && navigator.geolocation.getCurrentPosition(p => {
+  userLat = p.coords.latitude; userLng = p.coords.longitude;
+}, () => {});
 
-
-// ══════════════════════════════════════════
-// VENUES — add your partners here
-// ══════════════════════════════════════════
-let VENUES = []; // loaded from Supabase
-
-// Check if venue is in sun at current time
-function venueInSun(venue) {
-  const h = mins / 60; // current hour as float
-  return venue.sunWindows.some(([start, end]) => h >= start && h < end);
-}
-
-// Compute sun slots for display — merge windows into readable format
-function getSunSlots(venue) {
-  const DAY_START = 7, DAY_END = 21, DAY_SPAN = DAY_END - DAY_START;
-  const nowH = mins / 60;
-  return venue.sunWindows.map(([start, end]) => {
-    const fmt = h => `${String(Math.floor(h)).padStart(2,'0')}:${h%1===0.5?'30':'00'}`;
-    const left  = Math.max(0, ((start - DAY_START) / DAY_SPAN) * 100);
-    const width = Math.min(((end - start) / DAY_SPAN) * 100, 100 - left);
-    const nowPct = ((nowH - DAY_START) / DAY_SPAN) * 100;
-    const showNow = nowH >= DAY_START && nowH <= DAY_END;
-    return { startStr: fmt(start), endStr: fmt(end), left, width, nowPct, showNow };
-  });
-}
-
-// Add venue markers to map
-const venueMarkers = {};
-
-function makePin(venue, inSun) {
-  const wrap = document.createElement('div');
-  wrap.style.cssText = `
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    border: 3px solid #fff;
-    background: ${inSun ? '#FFB800' : '#6b88b5'};
-    box-shadow: 0 2px 10px rgba(0,0,0,0.22)${inSun ? ', 0 0 0 0 rgba(255,184,0,0.4)' : ''};
-    cursor: pointer;
-    will-change: transform;
-    transform: translateZ(0);
-    -webkit-tap-highlight-color: transparent;
-    transition: background 0.4s;
-    ${inSun ? 'animation: pinGlow 2.5s ease-in-out infinite;' : ''}
-  `;
-  wrap.textContent = venue.emoji;
-  return wrap;
-}
-
-function addVenueMarkers() {
-  VENUES.forEach(venue => {
-    const inSun = venueInSun(venue);
-    const el = makePin(venue, inSun);
-
-    const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-      .setLngLat([venue.lng, venue.lat])
-      .addTo(map);
-
-    el.addEventListener('click', e => {
-      e.stopPropagation();
-      openVenueCard(venue);
-    });
-
-    venueMarkers[venue.id] = { marker, el };
-  });
-}
-
-// Update all venue pins when time changes
-function updateVenuePins() {
-  VENUES.forEach(venue => {
-    const v = venueMarkers[venue.id];
-    if (!v) return;
-    const inSun = venueInSun(venue);
-    v.el.style.background = inSun ? '#FFB800' : '#6b88b5';
-    v.el.style.animation = inSun ? 'pinGlow 2.5s ease-in-out infinite' : 'none';
-  });
-  if (currentVenue) updateVenueCard(currentVenue);
-}
-
-// Open venue card
-let currentVenue = null;
-function closeVenueCard() {
-  const card = document.getElementById('venueCard');
-  card.style.transform = '';
-  card.classList.remove('visible');
-  document.getElementById('cardBackdrop').classList.remove('visible');
-  currentVenue = null;
-  // Show time pill again
-  document.querySelector('.time-pill').style.opacity = '1';
-  document.querySelector('.time-pill').style.pointerEvents = '';
-}
-
-function openVenueCard(venue) {
-  currentVenue = venue;
-  updateVenueCard(venue);
-  document.getElementById('venueCard').classList.add('visible');
-  document.getElementById('cardBackdrop').classList.add('visible');
-  // Hide time pill
-  document.querySelector('.time-pill').style.opacity = '0';
-  document.querySelector('.time-pill').style.pointerEvents = 'none';
-  // Smooth zoom to venue, offset center slightly right to leave room for card
-  map.flyTo({
-    center: [venue.lng, venue.lat],
-    zoom: 16,
-    duration: 800,
-    offset: [0, -120],
-    essential: true,
-  });
-}
-
-function updateVenueCard(venue) {
-  const inSun = venueInSun(venue);
-  document.getElementById('vcName').textContent = venue.name;
-  document.getElementById('vcType').textContent = venue.type;
-
-  // Photo — show if available, hide if not
-  const card = document.getElementById('venueCard');
-  const photo = document.getElementById('vcPhoto');
-  if (venue.photoUrl) {
-    photo.src = venue.photoUrl;
-    photo.style.display = 'block';
-    card.classList.add('has-photo');
-  } else {
-    photo.src = '';
-    photo.style.display = 'none';
-    card.classList.remove('has-photo');
-  }
-
-  const dot = document.getElementById('vcDot');
-  const statusTxt = document.getElementById('vcStatus');
-  dot.className = 'status-dot ' + (inSun ? 'sun' : 'shade');
-  statusTxt.className = 'venue-status-txt ' + (inSun ? 'sun' : 'shade');
-  statusTxt.textContent = inSun ? '☀️ In the sun now' : '🌑 In the shade now';
-
-  // Sun schedule bars
-  const slots = getSunSlots(venue);
-  const slotsEl = document.getElementById('vcSlots');
-  slotsEl.innerHTML = slots.map(s => `
-    <div class="sun-slot">
-      <div class="slot-times">
-        <span class="slot-time-label">☀️ ${s.startStr}</span>
-        <span class="slot-arrow">——</span>
-        <span class="slot-time-label">${s.endStr} ☀️</span>
-      </div>
-      <div class="slot-bar-wrap">
-        <div class="slot-fill" style="left:${s.left}%;width:${s.width}%"></div>
-        ${s.showNow ? `<div class="slot-now-line" style="left:${s.nowPct}%"></div>` : ''}
-      </div>
-      <div class="slot-day-labels"><span>7h</span><span>14h</span><span>21h</span></div>
-    </div>
-  `).join('');
-
-  // CTA buttons
-  document.getElementById('vcDir').onclick = () => window.open(venue.directionsUrl, '_blank');
-  document.getElementById('vcRes').onclick = () => window.open(venue.reserveUrl, '_blank');
-}
-
-// Close card
-// close button uses inline onclick
-
-// Close on map click
-// Close card on map click
-
-
-// Markers initialized in style.load above
-
-
-// Swipe to close - on the whole card
-(function() {
-  const card = document.getElementById('venueCard');
-  let startY = 0, active = false, moved = 0;
-
-  card.addEventListener('touchstart', e => {
-    startY = e.touches[0].clientY;
-    active = true;
-    moved = 0;
-    card.style.transition = 'none';
-  }, { passive: true });
-
-  card.addEventListener('touchmove', e => {
-    if (!active) return;
-    moved = e.touches[0].clientY - startY;
-    if (moved > 0) {
-      card.style.transform = 'translateY(' + moved + 'px)';
-    }
-  }, { passive: true });
-
-  card.addEventListener('touchend', e => {
-    if (!active) return;
-    active = false;
-    card.style.transition = '';
-    if (moved > 70) {
-      closeVenueCard();
-    } else {
-      card.style.transform = '';
-    }
-  }, { passive: true });
-})();
-
-
-document.getElementById('cardBackdrop').addEventListener('click', closeVenueCard);
-document.getElementById('cardBackdrop').addEventListener('touchend', (e) => {
-  e.preventDefault();
-  closeVenueCard();
+document.getElementById('geoBtn').addEventListener('click', () => {
+  if (!navigator.geolocation) return showToast('Not supported');
+  showToast('📡 Locating…');
+  navigator.geolocation.getCurrentPosition(p => {
+    lat = p.coords.latitude; lng = p.coords.longitude;
+    userLat = lat; userLng = lng;
+    map.flyTo({ center: [lng, lat], zoom: 16, duration: 1200 });
+    showToast('🎯 Location found!');
+  }, () => showToast('❌ Access denied'));
 });
 
+// ── TOAST
+function showToast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTmt); toastTmt = setTimeout(() => t.classList.remove('show'), 2600);
+}
 
+// ── ZOOM HINT
+function checkZoom() {
+  const hint = document.getElementById('zoomHint');
+  if (map.getZoom() < 14.5) hint.classList.add('visible');
+  else hint.classList.remove('visible');
+}
+map.on('zoom', checkZoom);
 
+// ── STYLE LOAD
+map.on('style.load', async () => {
+  try {
+    map.setConfigProperty('basemap', 'show3dObjects', true);
+    map.setConfigProperty('basemap', 'lightPreset', 'day');
+  } catch(e) {}
+  updateSliderUI();
+  updateSunLight();
+  rafId = requestAnimationFrame(animLoop);
+  VENUES = await loadVenues();
+  addVenueMarkers();
+  checkZoom();
+});
 
-// idle handler removed — rAF loop handles updates
+// ── RESIZE
+window.addEventListener('resize', updateSliderUI);
+
+// ── ROTATION HINT
+window.addEventListener('load', () => {
+  const hint = document.getElementById('rotHint');
+  if (hint) { setTimeout(() => { hint.style.opacity='1'; }, 1000); setTimeout(() => { hint.style.opacity='0'; }, 4000); }
+});
+</script>
+</body>
+</html>
