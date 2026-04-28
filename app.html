@@ -105,10 +105,7 @@ html, body {
   background: rgba(255,255,255,0.12); border-radius: 2px;
   cursor: pointer; touch-action: none;
 }
-.slider-fill {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: #E8890C; border-radius: 2px;
-}
+.slider-fill { display: none; }
 .slider-thumb {
   position: absolute; left: 50%; transform: translateX(-50%);
   width: 22px; height: 22px;
@@ -407,18 +404,36 @@ let renderedMins = mins;
 let rafId = null;
 let frameCount = 0;
 
+// Dirty flag: only recalculate sun when rendered time changes enough
+// Sun azimuth changes ~0.25° per minute → 0.1 min threshold is invisible
+const SUN_THRESHOLD = 0.1; // minutes
+let lastRenderedMins = -999;
+
 function animLoop() {
   frameCount++;
   const diff = targetMins - renderedMins;
+
   if (Math.abs(diff) > 0.02) {
+    // Moving — interpolate
     renderedMins += diff * 0.15;
-    if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
   } else {
+    // Stopped — snap to exact minute
     renderedMins = targetMins;
-    if (frameCount % 30 === 0 && map.isStyleLoaded()) {
-      try { updateSunLight(); } catch(e) {}
-    }
   }
+
+  // Only recalculate if change is visually meaningful
+  if (Math.abs(renderedMins - lastRenderedMins) >= SUN_THRESHOLD) {
+    if (map.isStyleLoaded()) {
+      try { updateSunLightAt(renderedMins); } catch(e) {}
+    }
+    lastRenderedMins = renderedMins;
+  }
+
+  // Recovery every ~2s when idle
+  if (frameCount % 120 === 0 && map.isStyleLoaded()) {
+    try { updateSunLight(); } catch(e) {}
+  }
+
   rafId = requestAnimationFrame(animLoop);
 }
 
@@ -510,19 +525,30 @@ function venueInSun(venue) {
   return venue.sunWindows.some(([s, e]) => h >= s && h <= e);
 }
 
+function makeMarkerEl(venue, inSun) {
+  const el = document.createElement('div');
+  el.style.cssText = `
+    width:44px;height:44px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;border:3px solid #fff;
+    background:${inSun ? '#FFB800' : '#6b88b5'};
+    box-shadow:0 2px 10px rgba(0,0,0,0.22);
+    cursor:pointer;
+    will-change:transform;transform:translateZ(0);
+    -webkit-tap-highlight-color:transparent;
+  `;
+  el.textContent = venue.emoji;
+  return el;
+}
+
 function addVenueMarkers() {
   VENUES.forEach(venue => {
     const inSun = venueInSun(venue);
-    const wrap = document.createElement('div');
-    wrap.className = 'venue-pin-wrap ' + (inSun ? 'in-sun' : 'in-shade');
-    const el = document.createElement('div');
-    el.className = 'venue-pin ' + (inSun ? 'in-sun' : 'in-shade');
-    el.textContent = venue.emoji;
-    wrap.appendChild(el);
-    const marker = new mapboxgl.Marker({ element: wrap, anchor: 'center' })
+    const el = makeMarkerEl(venue, inSun);
+    const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
       .setLngLat([venue.lng, venue.lat]).addTo(map);
-    wrap.addEventListener('click', e => { e.stopPropagation(); openVenueCard(venue); });
-    venueMarkers[venue.id] = { marker, el, wrap };
+    el.addEventListener('click', e => { e.stopPropagation(); openVenueCard(venue); });
+    venueMarkers[venue.id] = { marker, el };
   });
 }
 
@@ -531,8 +557,7 @@ function updateVenuePins() {
     const v = venueMarkers[venue.id];
     if (!v) return;
     const inSun = venueInSun(venue);
-    v.el.className = 'venue-pin ' + (inSun ? 'in-sun' : 'in-shade');
-    v.wrap.className = 'venue-pin-wrap ' + (inSun ? 'in-sun' : 'in-shade');
+    v.el.style.background = inSun ? '#FFB800' : '#6b88b5';
   });
   if (currentVenue) updateVenueCard(currentVenue);
 }
@@ -732,6 +757,15 @@ function checkZoom() {
   else hint.classList.remove('visible');
 }
 map.on('zoom', checkZoom);
+
+// Re-apply lights after Mapbox reloads style on zoom
+map.on('styledata', () => {
+  if (map.isStyleLoaded()) {
+    try {
+      map.setConfigProperty('basemap', 'show3dObjects', true);
+    } catch(e) {}
+  }
+});
 
 // ── STYLE LOAD
 map.on('style.load', async () => {
