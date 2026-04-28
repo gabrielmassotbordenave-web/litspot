@@ -542,7 +542,7 @@ let toastTmt, acTimeout, dragging = false;
 // ── MAP
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/standard',
+  style: 'mapbox://styles/mapbox/dark-v11',
   center: [lng, lat],
   zoom: 16,
   pitch: 45,
@@ -573,46 +573,47 @@ function toDeg(r)   { return r * 180 / Math.PI; }
 // ── SUN LIGHT
 function updateSunLightAt(m) {
   if (!map.isStyleLoaded()) return;
-  // High-precision sun position for arbitrary time
+
   const d = new Date();
   d.setHours(Math.floor(m / 60), Math.floor(m % 60), Math.round((m % 1) * 60), 0);
   const pos = SunCalc.getPosition(d, lat, lng);
-  const alt = toDeg(pos.altitude), az = toDeg(pos.azimuth);
-  const mapboxAz = ((-90 - az) % 360 + 360) % 360;
-  const polar = Math.max(2, Math.min(90, 90 - alt));
+  const alt = toDeg(pos.altitude);
+  const az  = toDeg(pos.azimuth);
 
+  // Mapbox v2 setLight position: [radial, azimuthal_deg, polar_deg]
+  // azimuthal: 0=east, CCW. SunCalc az 0=south → bearing = az+180 from N → mapbox = 90-(az+180)
+  const mapboxAz = ((-90 - az) % 360 + 360) % 360;
+  const polar    = Math.max(1, Math.min(90, 90 - alt));
+
+  let color, intensity;
   if (alt < -6) {
-    try {
-    map.setLights([
-      { id: 'ambient', type: 'ambient', properties: { color: '#0a1535', intensity: 0.3 } },
-      { id: 'sun', type: 'directional', properties: { color: '#0a1535', intensity: 0, direction: [mapboxAz, polar], 'shadow-intensity': 0 } },
-    ]);
-  } catch(e) {}
+    color = '#070d1f'; intensity = 0.05;
   } else if (alt <= 0) {
     const t = (alt + 6) / 6;
-    try {
-    map.setLights([
-      { id: 'ambient', type: 'ambient', properties: { color: '#1a2040', intensity: 0.4 } },
-      { id: 'sun', type: 'directional', properties: { color: `hsl(25,60%,${40+t*20}%)`, intensity: 0.3*t, direction: [mapboxAz, polar], 'shadow-intensity': 0.3*t } },
-    ]);
-  } catch(e) {}
+    color = `hsl(25, 40%, ${15 + t*20}%)`; intensity = 0.1 + t * 0.3;
   } else if (alt < 15) {
     const t = alt / 15;
-    try {
-    map.setLights([
-      { id: 'ambient', type: 'ambient', properties: { color: '#fff3d0', intensity: 0.4 } },
-      { id: 'sun', type: 'directional', properties: { color: `hsl(${30+t*10},${90-t*20}%,${65+t*10}%)`, intensity: 0.7+t*0.3, direction: [mapboxAz, polar], 'shadow-intensity': 1.0 } },
-    ]);
-  } catch(e) {}
+    color = `hsl(${35 + t*10}, ${80-t*20}%, ${55+t*15}%)`; intensity = 0.4 + t * 0.4;
   } else {
-    try {
-    map.setLights([
-      { id: 'ambient', type: 'ambient', properties: { color: '#fff8f0', intensity: 0.25 } },
-      { id: 'sun', type: 'directional', properties: { color: '#ffffff', intensity: 1.0, direction: [mapboxAz, polar], 'shadow-intensity': 1.0 } },
-    ]);
+    color = '#fff8f0'; intensity = 0.85;
+  }
+
+  try {
+    map.setLight({
+      anchor: 'map',
+      color: color,
+      intensity: intensity,
+      position: [1.5, mapboxAz, polar],
+    });
   } catch(e) {}
+
+  // Building color based on time of day
+  if (map.getLayer('3d-buildings')) {
+    const buildColor = alt < -6 ? '#0a0f1a' : alt < 15 ? '#1a2035' : '#aaa';
+    try { map.setPaintProperty('3d-buildings', 'fill-extrusion-color', buildColor); } catch(e) {}
   }
 }
+
 function updateSunLight() { updateSunLightAt(mins); }
 
 // ── SLIDER (custom vertical — plus fiable que input[type=range] vertical)
@@ -699,10 +700,7 @@ function animLoop() {
     // Not animating — but still re-apply every 60 frames (~1s)
     // to recover from Mapbox style reloads that reset lights
     if (frameCount % 30 === 0 && map.isStyleLoaded()) {
-      try {
-        map.setConfigProperty('basemap', 'show3dObjects', true);
-        updateSunLightAt(renderedMins);
-      } catch(e) {}
+      try { updateSunLightAt(renderedMins); } catch(e) {}
     }
   }
 
@@ -723,11 +721,28 @@ function go() {
 
 // ── MAP LOAD
 map.on('style.load', async () => {
-  map.setConfigProperty('basemap', 'show3dObjects', true);
+  // Add 3D buildings layer
+  if (!map.getLayer('3d-buildings')) {
+    map.addLayer({
+      id: '3d-buildings',
+      source: 'composite',
+      'source-layer': 'building',
+      filter: ['==', 'extrude', 'true'],
+      type: 'fill-extrusion',
+      minzoom: 14,
+      paint: {
+        'fill-extrusion-color': '#aaa',
+        'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 14, 0, 14.5, ['get', 'height']],
+        'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'], 14, 0, 14.5, ['get', 'min_height']],
+        'fill-extrusion-opacity': 0.8,
+        'fill-extrusion-ambient-occlusion-intensity': 0.5,
+      }
+    });
+  }
+
   updateSliderUI();
   go();
-  startAnimLoop(); // start persistent rAF loop
-  // Load venues from Supabase then add markers
+  startAnimLoop();
   VENUES = await loadVenues();
   addVenueMarkers();
   checkZoomHint();
