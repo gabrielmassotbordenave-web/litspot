@@ -683,16 +683,27 @@ let renderedMins = mins;
 let rafId = null;
 
 // Single persistent rAF loop — never stops, never gets stuck
+let frameCount = 0;
 function animLoop() {
+  frameCount++;
   const diff = targetMins - renderedMins;
 
   if (Math.abs(diff) > 0.02) {
+    // Actively animating — update every frame
     renderedMins += diff * 0.15;
     if (map.isStyleLoaded()) {
       try { updateSunLightAt(renderedMins); } catch(e) {}
     }
   } else {
     renderedMins = targetMins;
+    // Not animating — but still re-apply every 60 frames (~1s)
+    // to recover from Mapbox style reloads that reset lights
+    if (frameCount % 30 === 0 && map.isStyleLoaded()) {
+      try {
+        map.setConfigProperty('basemap', 'show3dObjects', true);
+        updateSunLightAt(renderedMins);
+      } catch(e) {}
+    }
   }
 
   rafId = requestAnimationFrame(animLoop);
@@ -721,6 +732,7 @@ map.on('style.load', async () => {
   addVenueMarkers();
   checkZoomHint();
 });
+
 
 // ── GEOLOC
 document.getElementById('geoBtn').addEventListener('click', () => {
