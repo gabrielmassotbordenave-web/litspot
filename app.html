@@ -127,8 +127,8 @@ html, body {
 #toast { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 20px); left: 50%; transform: translateX(-50%) translateY(8px); background: rgba(28,20,16,0.95); border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; padding: 10px 20px; font-size: 14px; color: #FFF5E6; z-index: 500; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; white-space: nowrap; max-width: calc(100vw - 32px); }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ZOOM HINT */
-#zoomHint { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 200; background: rgba(28,20,16,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,184,0,0.25); border-radius: 50px; padding: 10px 22px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: rgba(255,245,230,0.9); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.4s ease; }
+/* ZOOM HINT (OPTIMISÉ AVEC TRANSITIONS) */
+#zoomHint { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) scale(1); z-index: 200; background: rgba(28,20,16,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,184,0,0.25); border-radius: 50px; padding: 10px 22px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: rgba(255,245,230,0.9); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.4s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.25s ease, box-shadow 0.25s ease; }
 #zoomHint.visible { opacity: 1; }
 #zoomHint .zh-icon { animation: zhFloat 2s ease-in-out infinite; display: inline-block; }
 @keyframes zhFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
@@ -257,6 +257,22 @@ function updateSunLightAt(m) {
   } catch(e) {}
 }
 
+// FEEDBACK VISUEL : Fonction pour secouer/illuminer le message "Approchez pour voir..."
+function triggerZoomHint() {
+  const hint = document.getElementById('zoomHint');
+  if (!hint.classList.contains('visible')) return;
+  
+  hint.style.transform = 'translateX(-50%) scale(1.08)';
+  hint.style.border = '1px solid #E8890C';
+  hint.style.boxShadow = '0 4px 15px rgba(232,137,12,0.4)';
+  
+  setTimeout(() => {
+    hint.style.transform = 'translateX(-50%) scale(1)';
+    hint.style.border = '1px solid rgba(255,184,0,0.25)';
+    hint.style.boxShadow = 'none';
+  }, 250);
+}
+
 // SLIDER
 const track = document.getElementById('sliderTrack');
 const fill  = document.getElementById('sliderFill');
@@ -277,10 +293,25 @@ function pxToMins(clientY) {
   return Math.round(Math.max(0,Math.min(1,1-(clientY-rect.top)/rect.height))*1439);
 }
 
-track.addEventListener('mousedown', e => { dragging=true; mins=pxToMins(e.clientY); updateSliderUI(); go(); e.preventDefault(); });
+track.addEventListener('mousedown', e => { 
+  dragging=true; 
+  if (isFarZoom) triggerZoomHint(); // Déclenche l'effet si on est loin
+  mins=pxToMins(e.clientY); 
+  updateSliderUI(); 
+  go(); 
+  e.preventDefault(); 
+});
 document.addEventListener('mousemove', e => { if(!dragging)return; mins=pxToMins(e.clientY); updateSliderUI(); go(); });
 document.addEventListener('mouseup', () => { dragging=false; });
-track.addEventListener('touchstart', e => { dragging=true; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); e.preventDefault(); }, { passive:false });
+
+track.addEventListener('touchstart', e => { 
+  dragging=true; 
+  if (isFarZoom) triggerZoomHint(); // Déclenche l'effet si on est loin
+  mins=pxToMins(e.touches[0].clientY); 
+  updateSliderUI(); 
+  go(); 
+  e.preventDefault(); 
+}, { passive:false });
 document.addEventListener('touchmove', e => { if(!dragging)return; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); }, { passive:false });
 document.addEventListener('touchend', () => { dragging=false; });
 
@@ -292,7 +323,7 @@ function updateStatus() {
   document.getElementById('timeTxt').textContent = h+':'+m;
 }
 
-// ANIMATION LOOP (CORRECTED)
+// ANIMATION LOOP OPTIMISÉE (Zéro Freeze, Sauvegarde GPU)
 let targetMins = mins, renderedMins = mins, rafId = null, isFarZoom = false, frameCount = 0;
 
 function animLoop() {
@@ -300,21 +331,24 @@ function animLoop() {
   const diff = targetMins - renderedMins;
   
   if (Math.abs(diff) > 0.02) {
-    renderedMins += diff * 0.15;
+    renderedMins += diff * 0.15; // Interpolation fluide (Lerp)
   } else {
     renderedMins = targetMins;
   }
 
-  // Toujours mettre à jour le soleil Mapbox s'il y a du mouvement (pour les ombres 3D)
-  if (Math.abs(diff) > 0.02 || frameCount % 5 === 0) {
-    if (map.isStyleLoaded()) { 
-      try { updateSunLightAt(renderedMins); } catch(e) {} 
-    }
-  }
-
-  // Toujours mettre à jour l'overlay 2D global s'il y a du mouvement ET qu'on est dézoomé
+  // 1. Si on est dézoomé : on calcule SEULEMENT l'overlay 2D (sauvegarde massive du CPU/GPU)
   if (isFarZoom) {
-    drawShadowOverlay();
+    if (Math.abs(diff) > 0.02 || frameCount % 5 === 0) {
+      drawShadowOverlay();
+    }
+  } 
+  // 2. Si on est zoomé (3D active) : on met à jour les lumières de Mapbox
+  else {
+    if (Math.abs(diff) > 0.02 || frameCount % 5 === 0) {
+      if (map.isStyleLoaded()) { 
+        try { updateSunLightAt(renderedMins); } catch(e) {} 
+      }
+    }
   }
 
   rafId = requestAnimationFrame(animLoop);
@@ -528,8 +562,8 @@ document.getElementById('cardBackdrop').addEventListener('touchend', e=>{ e.prev
   card.addEventListener('touchend',()=>{if(!active)return;active=false;card.style.transition='';if(moved>70)closeVenueCard();else card.style.transform='';},{passive:true});
 })();
 
-// ZOOM HINT + OVERLAY (THRESHOLD CORRIGÉ)
-const ZOOM_THRESHOLD = 15.0; 
+// ZOOM HINT + OVERLAY : Treshold très haut pour éviter la zone morte
+const ZOOM_THRESHOLD = 16.0; 
 const overlayCanvas = document.getElementById('shadowOverlay');
 const overlayCtx = overlayCanvas.getContext('2d');
 
@@ -561,13 +595,23 @@ function drawShadowOverlay() {
 function updateZoomState() {
   isFarZoom=map.getZoom()<ZOOM_THRESHOLD;
   const hint=document.getElementById('zoomHint');
-  if(isFarZoom){overlayCanvas.style.opacity='1';hint.classList.add('visible');drawShadowOverlay();}
-  else{overlayCanvas.style.opacity='0';hint.classList.remove('visible');}
+  if(isFarZoom){
+    overlayCanvas.style.opacity='1';
+    hint.classList.add('visible');
+    drawShadowOverlay();
+    // Quand on dézoom, on coupe la lumière directionnelle de mapbox pour sauver le GPU
+    try { map.setLights([{ id:'ambient', type:'ambient', properties:{ color: '#fff8f0', intensity: 0.85 } }]); } catch(e) {}
+  }
+  else{
+    overlayCanvas.style.opacity='0';
+    hint.classList.remove('visible');
+    // On relance la lumière mapbox immédiatement au zoom
+    if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
+  }
 }
 
 map.on('zoom', updateZoomState);
 map.on('zoomend', updateZoomState);
-map.on('move', ()=>{ if(isFarZoom)drawShadowOverlay(); });
 window.addEventListener('resize', ()=>{ resizeOverlay(); updateSliderUI(); });
 </script>
 </body>
