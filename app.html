@@ -292,22 +292,31 @@ function updateStatus() {
   document.getElementById('timeTxt').textContent = h+':'+m;
 }
 
-// ANIMATION LOOP
+// ANIMATION LOOP (CORRECTED)
 let targetMins = mins, renderedMins = mins, rafId = null, isFarZoom = false, frameCount = 0;
 
 function animLoop() {
   frameCount++;
   const diff = targetMins - renderedMins;
+  
   if (Math.abs(diff) > 0.02) {
     renderedMins += diff * 0.15;
   } else {
     renderedMins = targetMins;
-    if (isFarZoom) drawShadowOverlay();
   }
-  // Always update sun every frame when moving, every 30 frames when idle
+
+  // Toujours mettre à jour le soleil Mapbox s'il y a du mouvement (pour les ombres 3D)
   if (Math.abs(diff) > 0.02 || frameCount % 5 === 0) {
-    if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
+    if (map.isStyleLoaded()) { 
+      try { updateSunLightAt(renderedMins); } catch(e) {} 
+    }
   }
+
+  // Toujours mettre à jour l'overlay 2D global s'il y a du mouvement ET qu'on est dézoomé
+  if (isFarZoom) {
+    drawShadowOverlay();
+  }
+
   rafId = requestAnimationFrame(animLoop);
 }
 
@@ -322,8 +331,6 @@ function go() {
 map.on('style.load', async () => {
   try { map.setConfigProperty('basemap','show3dObjects',true); map.setConfigProperty('basemap','lightPreset','day'); } catch(e) {}
 
-  // SHADOW ENGINE MANUEL RETIRÉ ICI
-  
   updateSliderUI();
   go();
   startAnimLoop();
@@ -521,8 +528,8 @@ document.getElementById('cardBackdrop').addEventListener('touchend', e=>{ e.prev
   card.addEventListener('touchend',()=>{if(!active)return;active=false;card.style.transition='';if(moved>70)closeVenueCard();else card.style.transform='';},{passive:true});
 })();
 
-// ZOOM HINT + OVERLAY
-const ZOOM_THRESHOLD = 14.5;
+// ZOOM HINT + OVERLAY (THRESHOLD CORRIGÉ)
+const ZOOM_THRESHOLD = 15.0; 
 const overlayCanvas = document.getElementById('shadowOverlay');
 const overlayCtx = overlayCanvas.getContext('2d');
 
