@@ -12,12 +12,12 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-#map { position: absolute; inset: 0; }
+#map { position: absolute; inset: 0; background: #e2e8f0; }
 .mapboxgl-ctrl-group { background: rgba(255,255,255,0.92) !important; border: 1px solid rgba(0,0,0,0.08) !important; }
 .mapboxgl-ctrl-attrib { font-size: 9px !important; }
 .mapboxgl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom) + 16px) !important; right: 12px !important; }
 
-/* SEARCH & UI (Identique à ton design original) */
+/* SEARCH */
 .top-bar { position: absolute; top: calc(env(safe-area-inset-top) + 12px); left: 12px; right: 12px; z-index: 100; display: flex; gap: 10px; align-items: center; }
 .search-wrap { position: relative; flex: 1; }
 #searchInput { width: 100%; background: rgba(255,255,255,0.97); border: 1.5px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 14px 44px 14px 16px; font-family: 'Outfit', sans-serif; font-size: 16px; color: #1a1a2e; outline: none; box-shadow: 0 4px 20px rgba(0,0,0,0.12); -webkit-appearance: none; }
@@ -33,12 +33,16 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 .ac-name { font-size: 15px; font-weight: 500; color: #1a1a2e; }
 .ac-addr { font-size: 12px; color: rgba(0,0,0,0.35); margin-top: 3px; }
 .geo-btn { width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0; background: rgba(255,255,255,0.97); border: 1.5px solid rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+
+/* TIME PILL */
 .time-pill { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); z-index: 100; background: rgba(28,20,16,0.92); border: 1px solid rgba(255,240,220,0.14); border-radius: 22px; padding: 14px 0; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); width: 56px; transition: opacity 0.3s ease; }
 .pill-time { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 600; color: #FFF5E6; letter-spacing: -0.5px; line-height: 1; text-align: center; white-space: nowrap; width: 100%; }
 .pill-status { font-size: 18px; line-height: 1; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .slider-track { position: relative; width: 4px; height: 130px; background: rgba(255,240,220,0.14); border-radius: 2px; cursor: pointer; touch-action: none; }
 .slider-thumb { position: absolute; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: radial-gradient(circle at 38% 38%, #FFE07A, #E8890C); border-radius: 50%; box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5); }
-.venue-card { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #FFFFFF; border: 1px solid rgba(0,0,0,0.06); border-radius: 24px 24px 0 0; overflow: hidden; box-shadow: 0 -8px 32px rgba(0,0,0,0.18), 0 -1px 0 rgba(0,0,0,0.06); transform: translateY(100%); transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1); pointer-events: none; padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
+
+/* VENUE CARD */
+.venue-card { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #FFFFFF; border: 1px solid rgba(0,0,0,0.06); border-radius: 24px 24px 0 0; overflow: hidden; box-shadow: 0 -8px 32px rgba(0,0,0,0.18); transform: translateY(100%); transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1); pointer-events: none; padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
 .venue-card.visible { transform: translateY(0); pointer-events: all; }
 .card-handle { width: 36px; height: 4px; background: rgba(0,0,0,0.12); border-radius: 2px; margin: 12px auto 0; }
 .venue-card-photo { width: 100%; height: 140px; object-fit: cover; display: none; }
@@ -68,7 +72,7 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 .slot-now-line { position: absolute; top: -3px; width: 2px; height: 12px; background: #fff; border-radius: 1px; opacity: 0.8; }
 .slot-day-labels { display: flex; justify-content: space-between; font-size: 9px; color: rgba(28,20,16,0.45); margin-top: 2px; }
 .venue-cta { display: flex; gap: 10px; }
-.btn-directions, .btn-reserve { flex: 1; padding: 14px 10px; border-radius: 14px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; font-family: 'Outfit', sans-serif; border: none; }
+.btn-directions, .btn-reserve { flex: 1; padding: 14px 10px; border-radius: 14px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; border: none; font-family: 'Outfit', sans-serif;}
 .btn-directions { background: #f5f0eb; border: 1.5px solid rgba(0,0,0,0.12); color: rgba(28,20,16,0.8); }
 .btn-reserve { background: #E8890C; color: #fff; }
 .venue-card-close { position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 50%; background: rgba(28,20,16,0.12); border: none; font-size: 16px; font-weight: 700; cursor: pointer; z-index: 2000; }
@@ -76,19 +80,11 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 #cardBackdrop.visible { display: block; }
 #toast { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 20px); left: 50%; transform: translateX(-50%) translateY(8px); background: rgba(28,20,16,0.95); border-radius: 12px; padding: 10px 20px; font-size: 14px; color: #FFF5E6; z-index: 500; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* ZOOM HINT (Nouveau comportement plus vif) */
-#zoomHint { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) scale(1); z-index: 200; background: rgba(28,20,16,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,184,0,0.25); border-radius: 50px; padding: 10px 22px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: rgba(255,245,230,0.9); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.3s ease, transform 0.2s ease; }
-#zoomHint.visible { opacity: 1; }
-#zoomHint .zh-icon { animation: zhFloat 2s ease-in-out infinite; display: inline-block; }
-@keyframes zhFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-#zoomHint em { color: #FFB800; font-style: normal; font-weight: 600; }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
-<canvas id="shadowOverlay" style="position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;transition:opacity 0.4s;"></canvas>
 <div id="cardBackdrop"></div>
 
 <!-- Search -->
@@ -107,12 +103,9 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
   <div class="pill-time" id="timeTxt">12:00</div>
   <div class="pill-status" id="statusEmoji">☀️</div>
   <div class="slider-track" id="sliderTrack">
-    <div class="slider-fill" id="sliderFill"></div>
     <div class="slider-thumb" id="sliderThumb"></div>
   </div>
 </div>
-
-<div id="zoomHint"><span class="zh-icon">☀️</span><span>Zoomez pour voir les <em>ombres réelles</em></span></div>
 
 <!-- Venue card -->
 <div class="venue-card" id="venueCard">
@@ -167,20 +160,17 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkyd
 let lat = 45.5088, lng = -73.5878;
 let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
-let toastTmt, acTimeout, dragging = false;
+let dragging = false;
 
-// LE SEUIL ABSOLU : Au-dessus de 14.5, la 3D apparaît, le voile 2D disparaît. Simple et net.
-const ZOOM_THRESHOLD = 14.5; 
-let isFarZoom = false;
-
-// 1. LE STYLE : On repasse au style Light (la seule vraie façon d'avoir des ombres custom)
+// On utilise le style light classique pour un contrôle total des polygones
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/light-v11', 
+  style: 'mapbox://styles/mapbox/light-v11',
   center: [lng, lat],
   zoom: 16,
-  pitch: 45,
-  antialias: true,
+  pitch: 55,
+  bearing: -20,
+  antialias: true
 });
 
 if (navigator.geolocation) {
@@ -191,47 +181,157 @@ map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-ri
 function getDate() { const d = new Date(); d.setHours(~~(mins/60), mins%60, 0, 0); return d; }
 function toDeg(r) { return r * 180 / Math.PI; }
 
-// 2. LA VRAIE LUMIÈRE MAPBOX (L'API classique qui marche à 100%)
-function updateSunLightAt(m) {
-  if (!map.isStyleLoaded()) return;
-  const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
-  const pos = SunCalc.getPosition(d, lat, lng);
-  
-  const alt = toDeg(pos.altitude);
-  const az = toDeg(pos.azimuth);
+// --- 1. LE SYSTÈME DE CACHE DES BÂTIMENTS (Performance absolue) ---
+let buildingCache = [];
 
-  // Conversion mathématique exacte SunCalc -> Mapbox
-  const mapboxAz = (az + 180) % 360;
-  const mapboxPolar = Math.max(0, Math.min(90, 90 - alt));
-  
-  let color = '#fff8f0', intensity = 0.6;
-  if (alt < -6) { intensity = 0.1; color = '#4a5b7d'; }
-  else if (alt <= 0) { color = '#ffb067'; intensity = 0.3; }
-  else if (alt < 15) { color = '#ffdbb0'; intensity = 0.5; }
-
+function updateBuildingCache() {
+  if (!map.getLayer('3d-buildings')) return;
   try {
-    // Cette fonction contrôle VRAIMENT les ombres des bâtiments 3D
-    map.setLight({
-      anchor: 'map',
-      color: color,
-      intensity: intensity,
-      position: [1.5, mapboxAz, mapboxPolar]
-    });
+    // On capture uniquement les bâtiments actuellement visibles à l'écran
+    const features = map.queryRenderedFeatures({ layers: ['3d-buildings'] });
+    const seen = new Set();
+    buildingCache = [];
+
+    for (let f of features) {
+      const key = f.id || (f.geometry.coordinates[0][0].join(','));
+      if (!seen.has(key)) {
+        seen.add(key);
+        // Gestion sécurisée des formes complexes
+        let ring = f.geometry.coordinates[0];
+        if (f.geometry.type === 'MultiPolygon') ring = f.geometry.coordinates[0][0];
+        
+        buildingCache.push({
+          h: f.properties.height || 5, // Hauteur du bâtiment
+          ring: ring // Les coordonnées du contour au sol
+        });
+      }
+    }
   } catch(e) {}
 }
 
-function triggerZoomHint() {
-  if (!isFarZoom) return;
-  const hint = document.getElementById('zoomHint');
-  hint.style.transform = 'translateX(-50%) scale(1.08)';
-  hint.style.border = '1px solid #E8890C';
-  setTimeout(() => {
-    hint.style.transform = 'translateX(-50%) scale(1)';
-    hint.style.border = '1px solid rgba(255,184,0,0.25)';
-  }, 200);
+// On met à jour la mémoire uniquement quand la caméra s'arrête
+map.on('moveend', updateBuildingCache);
+map.on('idle', updateBuildingCache);
+
+// --- 2. LE MOTEUR GÉOMÉTRIQUE (Ombres sur la rue) ---
+let lastShadowTime = 0;
+
+function computeAndDrawShadows(force = false) {
+  const now = performance.now();
+  // Throttling : On ne calcule la géométrie que toutes les 40ms (~25 FPS) pour soulager le téléphone
+  if (!force && now - lastShadowTime < 40) return;
+  lastShadowTime = now;
+
+  if (!map.getSource('shadows')) return;
+
+  const d = new Date();
+  d.setHours(Math.floor(renderedMins/60), Math.floor(renderedMins%60), 0, 0);
+  const pos = SunCalc.getPosition(d, lat, lng);
+  const alt = pos.altitude;
+  const az = pos.azimuth;
+
+  // S'il fait nuit (soleil sous l'horizon), on efface les ombres
+  if (alt <= 0.01) {
+    map.getSource('shadows').setData({ type: 'FeatureCollection', features: [] });
+    return;
+  }
+
+  // Trigonométrie de la projection
+  const shadowFactor = 1 / Math.tan(alt);
+  const sinAz = Math.sin(az);
+  const cosAz = Math.cos(az);
+  
+  const latRad = lat * Math.PI / 180;
+  const mPerDegLat = 111320;
+  const mPerDegLng = 111320 * Math.cos(latRad);
+
+  const shadowFeatures = [];
+
+  // On crée l'ombre pour chaque bâtiment mémorisé
+  for (let b of buildingCache) {
+    const shadowLen = b.h * shadowFactor;
+    const dLat = (shadowLen * cosAz) / mPerDegLat;
+    const dLng = (shadowLen * sinAz) / mPerDegLng;
+
+    // Décalage du polygone
+    const offsetRing = b.ring.map(pt => [pt[0] + dLng, pt[1] - dLat]);
+    
+    shadowFeatures.push({
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[...b.ring, ...offsetRing.reverse()]]
+      }
+    });
+  }
+
+  // Envoi ultra-rapide à la carte
+  map.getSource('shadows').setData({ type: 'FeatureCollection', features: shadowFeatures });
 }
 
-// SLIDER UI
+// Éclairage 3D des murs (complète les ombres au sol)
+function updateSunLightAt(m) {
+  const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
+  const pos = SunCalc.getPosition(d, lat, lng);
+  const alt = toDeg(pos.altitude), az = toDeg(pos.azimuth);
+  const mapboxAz = (az + 180) % 360;
+  const mapboxPolar = Math.max(0, Math.min(90, 90 - alt));
+  
+  let color = '#fff8f0', intensity = 0.55;
+  if (alt < -6) { intensity = 0.1; color = '#4a5b7d'; }
+  else if (alt <= 0) { color = '#ffb067'; intensity = 0.25; }
+  else if (alt < 15) { color = '#ffdbb0'; intensity = 0.45; }
+
+  try {
+    map.setLight({ anchor: 'map', color: color, intensity: intensity, position: [1.5, mapboxAz, mapboxPolar] });
+  } catch(e) {}
+}
+
+// --- 3. L'INJECTION DES COUCHES ---
+map.on('style.load', async () => {
+  
+  map.addSource('custom-composite', {
+    type: 'vector',
+    url: 'mapbox://mapbox.mapbox-streets-v8'
+  });
+
+  // A. La couche des ombres (dessinée EN PREMIER, donc sous les bâtiments)
+  map.addSource('shadows', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'shadows-layer',
+    type: 'fill',
+    source: 'shadows',
+    paint: {
+      'fill-color': '#0f172a', // Un beau gris-bleu foncé pour l'ombre
+      'fill-opacity': 0.35
+    }
+  });
+
+  // B. La couche des bâtiments 3D
+  map.addLayer({
+    'id': '3d-buildings',
+    'source': 'custom-composite',
+    'source-layer': 'building',
+    'filter': ['==', 'extrude', 'true'],
+    'type': 'fill-extrusion',
+    'minzoom': 13.5, // Tu peux voir les bâtiments de loin !
+    'paint': {
+      'fill-extrusion-color': '#f2f0eb', // Couleur des murs
+      'fill-extrusion-height': ['get', 'height'],
+      'fill-extrusion-base': ['get', 'min_height'],
+      'fill-extrusion-opacity': 1.0
+    }
+  });
+
+  updateSliderUI();
+  go();
+  startAnimLoop();
+  VENUES = await loadVenues();
+  addVenueMarkers();
+});
+
+
+// UI SLIDER
 const track = document.getElementById('sliderTrack');
 const thumb = document.getElementById('sliderThumb');
 
@@ -250,31 +350,37 @@ function pxToMins(clientY) {
   return Math.round(Math.max(0,Math.min(1,1-(clientY-rect.top)/rect.height))*1439);
 }
 
-track.addEventListener('mousedown', e => { dragging=true; triggerZoomHint(); mins=pxToMins(e.clientY); updateSliderUI(); go(); e.preventDefault(); });
+track.addEventListener('mousedown', e => { dragging=true; mins=pxToMins(e.clientY); updateSliderUI(); go(); e.preventDefault(); });
 document.addEventListener('mousemove', e => { if(!dragging)return; mins=pxToMins(e.clientY); updateSliderUI(); go(); });
 document.addEventListener('mouseup', () => { dragging=false; });
-
-track.addEventListener('touchstart', e => { dragging=true; triggerZoomHint(); mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); e.preventDefault(); }, { passive:false });
+track.addEventListener('touchstart', e => { dragging=true; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); e.preventDefault(); }, { passive:false });
 document.addEventListener('touchmove', e => { if(!dragging)return; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); }, { passive:false });
 document.addEventListener('touchend', () => { dragging=false; });
 
-// 3. LA BOUCLE D'ANIMATION (Légère et unifiée)
+
+// LA BOUCLE D'ANIMATION (Fluide et optimisée)
 let targetMins = mins, renderedMins = mins, rafId = null;
 
 function animLoop() {
   const diff = targetMins - renderedMins;
+  
   if (Math.abs(diff) > 0.05) {
-    renderedMins += diff * 0.15; // Lerp pour la fluidité
+    renderedMins += diff * 0.2; // Lerp fluide
+    if (map.isStyleLoaded()) {
+      updateSunLightAt(renderedMins);
+      computeAndDrawShadows(false); // Mode "Throttled" pendant le glissement
+    }
   } else {
     renderedMins = targetMins;
+    if (map.isStyleLoaded()) {
+        computeAndDrawShadows(true); // Force le dessin parfait quand on lâche le doigt
+    }
   }
-
-  // On met à jour simultanément le canevas (si dézoomé) et la lumière Mapbox (si zoomé)
-  if (isFarZoom) drawShadowOverlay();
-  if (map.isStyleLoaded()) updateSunLightAt(renderedMins);
 
   rafId = requestAnimationFrame(animLoop);
 }
+
+function startAnimLoop() { if (rafId) return; rafId = requestAnimationFrame(animLoop); }
 
 function go() {
   const alt = toDeg(SunCalc.getPosition(getDate(), lat, lng).altitude);
@@ -285,76 +391,9 @@ function go() {
   targetMins = mins;
 }
 
-// 4. L'INJECTION DE NOTRE PROPRE 3D
-map.on('load', async () => {
-  // On insère les bâtiments 3D natifs de Mapbox nous-mêmes
-  map.addLayer({
-    'id': '3d-buildings',
-    'source': 'composite',
-    'source-layer': 'building',
-    'filter': ['==', 'extrude', 'true'],
-    'type': 'fill-extrusion',
-    'minzoom': ZOOM_THRESHOLD, // La 3D s'active pile à 14.5
-    'paint': {
-        'fill-extrusion-color': '#e8e6e3', // Couleur des façades pour bien voir l'ombre
-        'fill-extrusion-height': ['get', 'height'],
-        'fill-extrusion-base': ['get', 'min_height'],
-        'fill-extrusion-opacity': 1.0
-    }
-  });
+window.addEventListener('resize', ()=>{ updateSliderUI(); });
 
-  updateSliderUI();
-  go();
-  rafId = requestAnimationFrame(animLoop);
-  VENUES = await loadVenues();
-  addVenueMarkers();
-  updateZoomState();
-});
-
-// LOGIQUE DE BASCULE
-function updateZoomState() {
-  isFarZoom = map.getZoom() < ZOOM_THRESHOLD;
-  const hint = document.getElementById('zoomHint');
-  const overlay = document.getElementById('shadowOverlay');
-  
-  if (isFarZoom) {
-    hint.classList.add('visible');
-    overlay.style.opacity = '1';
-    drawShadowOverlay();
-  } else {
-    hint.classList.remove('visible');
-    overlay.style.opacity = '0';
-  }
-}
-
-map.on('zoom', updateZoomState);
-window.addEventListener('resize', ()=>{ resizeOverlay(); updateSliderUI(); });
-
-// DESSIN DU VOILE 2D (Faux Soleil pour le dézoom global)
-const overlayCanvas = document.getElementById('shadowOverlay');
-const overlayCtx = overlayCanvas.getContext('2d');
-function resizeOverlay() { overlayCanvas.width=window.innerWidth; overlayCanvas.height=window.innerHeight; }
-resizeOverlay();
-
-function drawShadowOverlay() {
-  const W=overlayCanvas.width,H=overlayCanvas.height;
-  overlayCtx.clearRect(0,0,W,H);
-  const d=new Date(); d.setHours(Math.floor(renderedMins/60),Math.floor(renderedMins%60),0,0);
-  const pos=SunCalc.getPosition(d,lat,lng);
-  const alt=pos.altitude*180/Math.PI,az=pos.azimuth*180/Math.PI;
-  if(alt<=-6){overlayCtx.fillStyle='rgba(5,10,30,0.55)';overlayCtx.fillRect(0,0,W,H);return;}
-  if(alt<=0){overlayCtx.fillStyle=`rgba(5,10,30,${0.45*(1-(alt+6)/6)})`;overlayCtx.fillRect(0,0,W,H);return;}
-  const shadowAngle=(az+180)*Math.PI/180,canvasAngle=Math.PI/2-shadowAngle;
-  const strength=Math.max(0,Math.min(1,1-alt/60));
-  const len=Math.max(W,H)*1.6*strength;
-  const cx=W/2,cy=H*0.52;
-  const g=overlayCtx.createLinearGradient(cx,cy,cx+Math.cos(canvasAngle)*len,cy+Math.sin(canvasAngle)*len);
-  const a=strength*0.38;
-  g.addColorStop(0,'rgba(5,10,30,0)');g.addColorStop(0.3,`rgba(5,10,30,${a*0.4})`);g.addColorStop(1,`rgba(5,10,30,${a})`);
-  overlayCtx.fillStyle=g;overlayCtx.fillRect(0,0,W,H);
-}
-
-// REST OF APP LOGIC (Géoloc, Recherche, Venues)
+// GEOLOC & RECHERCHE (Inchangés)
 document.getElementById('geoBtn').addEventListener('click', () => {
   if (!navigator.geolocation) return showToast('Not supported');
   showToast('📡 Locating…');
@@ -365,6 +404,7 @@ document.getElementById('geoBtn').addEventListener('click', () => {
   }, () => showToast('❌ Access denied'));
 });
 
+let toastTmt, acTimeout;
 const si=document.getElementById('searchInput'),acList=document.getElementById('ac-list'),spn=document.getElementById('spinner'),sico=document.querySelector('.s-icon');
 let searchMarker = null;
 
