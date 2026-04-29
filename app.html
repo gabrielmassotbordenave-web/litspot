@@ -175,7 +175,7 @@ const ZOOM_THRESHOLD = 14.5;
 
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/light-v11',
+  style: 'mapbox://styles/mapbox/standard',
   center: [lng, lat],
   zoom: 16,
   pitch: 50,
@@ -344,22 +344,8 @@ map.on('style.load', async () => {
     paint: { 'fill-color':'#0f172a', 'fill-opacity':0.38, 'fill-antialias':true }
   }, labelLayerId);
 
-  // 3D buildings from composite (already in light-v11 style)
-  // Add extruded buildings manually for better control
-  map.addLayer({
-    id: '3d-buildings',
-    source: 'composite',
-    'source-layer': 'building',
-    filter: ['==', 'extrude', 'true'],
-    type: 'fill-extrusion',
-    minzoom: ZOOM_THRESHOLD,
-    paint: {
-      'fill-extrusion-color': '#f0ece4',
-      'fill-extrusion-height': ['interpolate',['linear'],['zoom'],ZOOM_THRESHOLD,0,ZOOM_THRESHOLD+0.5,['get','height']],
-      'fill-extrusion-base': ['interpolate',['linear'],['zoom'],ZOOM_THRESHOLD,0,ZOOM_THRESHOLD+0.5,['get','min_height']],
-      'fill-extrusion-opacity': 0.9,
-    }
-  }, labelLayerId);
+  // Standard style has 3D buildings built-in
+  try { map.setConfigProperty('basemap','show3dObjects',true); map.setConfigProperty('basemap','lightPreset','day'); } catch(e) {}
 
   updateSliderUI();
   go();
