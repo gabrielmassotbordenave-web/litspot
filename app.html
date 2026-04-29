@@ -300,13 +300,13 @@ function animLoop() {
   const diff = targetMins - renderedMins;
   if (Math.abs(diff) > 0.02) {
     renderedMins += diff * 0.15;
-    if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
   } else {
     renderedMins = targetMins;
-    if (frameCount % 30 === 0 && map.isStyleLoaded()) {
-      try { updateSunLightAt(renderedMins); } catch(e) {}
-    }
     if (isFarZoom) drawShadowOverlay();
+  }
+  // Always update sun every frame when moving, every 30 frames when idle
+  if (Math.abs(diff) > 0.02 || frameCount % 30 === 0) {
+    if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
   }
   rafId = requestAnimationFrame(animLoop);
 }
@@ -323,6 +323,13 @@ map.on('style.load', async () => {
   VENUES = await loadVenues();
   addVenueMarkers();
   updateZoomState();
+});
+
+// Re-apply lights every time Mapbox reloads style (happens on zoom level changes)
+map.on('styledata', () => {
+  if (!map.isStyleLoaded()) return;
+  try { map.setConfigProperty('basemap', 'show3dObjects', true); } catch(e) {}
+  try { updateSunLightAt(renderedMins); } catch(e) {}
 });
 
 // GEOLOC
