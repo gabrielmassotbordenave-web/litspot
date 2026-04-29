@@ -191,23 +191,7 @@ map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-ri
 function getDate() { const d=new Date(); d.setHours(~~(mins/60),mins%60,0,0); return d; }
 function toDeg(r) { return r * 180 / Math.PI; }
 
-// ── CONVEX HULL ─────────────────────────────────────────────────────
-function cross(o, a, b) { return (a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]); }
-function convexHull(pts) {
-  if (pts.length < 3) return pts;
-  const p = pts.slice().sort((a,b) => a[0]===b[0] ? a[1]-b[1] : a[0]-b[0]);
-  const lo=[], hi=[];
-  for (const pt of p) {
-    while (lo.length>=2 && cross(lo[lo.length-2],lo[lo.length-1],pt)<=0) lo.pop();
-    lo.push(pt);
-  }
-  for (let i=p.length-1;i>=0;i--) {
-    while (hi.length>=2 && cross(hi[hi.length-2],hi[hi.length-1],p[i])<=0) hi.pop();
-    hi.push(p[i]);
-  }
-  hi.pop(); lo.pop();
-  return lo.concat(hi);
-}
+// Shadow uses direct polygon offset — no convex hull needed
 
 // ── BUILDING CACHE ──────────────────────────────────────────────────
 let buildingCache = [];
@@ -243,7 +227,7 @@ let lastShadowTime = 0;
 
 function computeAndDrawShadows(force) {
   const now = performance.now();
-  if (!force && now - lastShadowTime < 32) return; // ~30fps max
+  if (!force && now - lastShadowTime < 32) return;
   lastShadowTime = now;
 
   const src = map.getSource('shadows');
@@ -252,51 +236,72 @@ function computeAndDrawShadows(force) {
   const d = new Date();
   d.setHours(Math.floor(renderedMins/60), Math.floor(renderedMins%60), 0, 0);
   const pos = SunCalc.getPosition(d, lat, lng);
-  const alt = pos.altitude; // radians
-  const az  = pos.azimuth;  // radians, SunCalc: 0=south, clockwise positive
+  const alt = pos.altitude;
+  const az  = pos.azimuth;
 
   if (alt <= 0.015) {
     src.setData({ type:'FeatureCollection', features:[] });
     return;
   }
 
-  const shadowFactor = 1 / Math.tan(alt);
-
-  // ── CORRECT AZIMUTH FIX ──────────────────────────────────────────
-  // SunCalc azimuth: 0=south, positive=west (clockwise from south)
-  // Shadow falls OPPOSITE to sun → add π
-  // In geographic coords: dLng = shadow projected on X axis, dLat on Y
-  // Sun at az=0 (south) → shadow goes north → dLat positive
-  // Sun at az=π/2 (west) → shadow goes east → dLng positive
-  const shadowAz = az + Math.PI; // direction shadow falls toward
-  const sinAz = Math.sin(shadowAz);
-  const cosAz = Math.cos(shadowAz);
-
-  // Correct metric→degree conversion for Montréal
+  const shadowFactor = Math.min(1 / Math.tan(alt), 20); // cap very long shadows at sunrise/sunset
   const latRad = lat * Math.PI / 180;
   const mPerDegLat = 111320;
-  const mPerDegLng = 111320 * Math.cos(latRad); // ~78000m/deg at 45.5°N
+  const mPerDegLng = 111320 * Math.cos(latRad);
 
+  // SunCalc: az=0 is SOUTH, positive goes WEST
+  // Shadow direction = opposite of sun = az + π
+  // BUT: in lng/lat coords, north = +lat, east = +lng
+  // SunCalc south=0, going clockwise: sin(az)=west component, cos(az)=south component
+  // Shadow (opposite): sin(az+π) = -sin(az) → east component of shadow
+  //                    cos(az+π) = -cos(az) → north component of shadow
+  // So: dLng = shadowLen * -sin(az) / mPerDegLng  (positive = east)
+  //     dLat = shadowLen * -cos(az) / mPerDegLat  (positive = north... wait)
+  // Actually SunCalc az: 0=S, π/2=W, π=N, 3π/2=E
+  // sin(0)=0, cos(0)=1 → sun from south → shadow goes north → dLat positive ✓
+  // sin(π/2)=1 → sun from west → shadow goes east → dLng = -1 * 1 → negative?
+  // That's wrong. Let me think again:
+  // Sun from WEST means it's to the west, shadow falls to the EAST = +lng
+  // az=π/2 (west): dLng should be positive (east)
+  // dLng = shadowLen * -sin(az) / mPerDegLng → -sin(π/2) = -1 → negative = WRONG
+  // 
+  // Correct: az measured clockwise from south
+  // x (east) component of sun direction: sin(az) (positive = west at az=π/2... )
+  // No: clockwise from south: az=π/2 is WEST, so sin(π/2)=1 means sun is to the west
+  // Shadow goes OPPOSITE: east = +lng → dLng = +sin(az) * shadowLen / mPerDegLng ✓
+  // y (north) component: cos(az) at az=0 → cos(0)=1 → sun to south → shadow north ✓
+  // dLat = +cos(az) * shadowLen / mPerDegLat ✓
+  // 
+  // FINAL CORRECT FORMULA:
+  // dLng = shadowLen * sin(az) / mPerDegLng
+  // dLat = shadowLen * cos(az) / mPerDegLat
+  // (no need for az+π — sin/cos of original az gives the shadow direction directly)
+
+  const sinAz = Math.sin(az);
+  const cosAz = Math.cos(az);
   const features = [];
 
   for (const b of buildingCache) {
+    const ring = b.ring;
+    if (!ring || ring.length < 3) continue;
+
     const shadowLen = b.h * shadowFactor;
-    // dLng: east-west offset. sinAz positive → east
     const dLng = (shadowLen * sinAz) / mPerDegLng;
-    // dLat: north-south offset. cosAz positive → north
     const dLat = (shadowLen * cosAz) / mPerDegLat;
 
-    // Merge building footprint + offset footprint into convex hull
-    const allPts = [];
-    for (const pt of b.ring) {
-      allPts.push(pt);
-      allPts.push([pt[0] + dLng, pt[1] + dLat]);
-    }
+    // Build shadow polygon by tracing:
+    // forward along footprint, then back along offset footprint
+    // This gives a proper shadow shape without hull artifacts
+    const n = ring.length;
+    const poly = [];
 
-    const hull = convexHull(allPts);
-    if (hull.length < 3) continue;
-    hull.push(hull[0]); // close ring
-    features.push({ type:'Feature', geometry:{ type:'Polygon', coordinates:[hull] } });
+    // Footprint (original winding)
+    for (let i = 0; i < n; i++) poly.push(ring[i]);
+    // Offset footprint (reverse winding to close the shape)
+    for (let i = n - 1; i >= 0; i--) poly.push([ring[i][0] + dLng, ring[i][1] + dLat]);
+    poly.push(poly[0]); // close
+
+    features.push({ type:'Feature', geometry:{ type:'Polygon', coordinates:[poly] } });
   }
 
   src.setData({ type:'FeatureCollection', features });
