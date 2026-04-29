@@ -171,20 +171,19 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkyd
 let lat = 45.5088, lng = -73.5878;
 let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
-let toastTmt, acTimeout, dragging = false;
-
-// Le seuil à partir duquel les bâtiments 3D s'afficheront et le message disparaîtra
-const ZOOM_THRESHOLD = 14.0; 
+let dragging = false;
 let isFarZoom = false;
+const ZOOM_THRESHOLD = 14.5; 
 
-// ON UTILISE LE STYLE LIGHT-V11 : Léger, clair, et permet les ombres castées WebGL
+// ON REVIENT AU STYLE SÉCURISÉ (light-v11) QUI ÉVITE L'ÉCRAN GRIS
 const map = new mapboxgl.Map({
   container: 'map',
   style: 'mapbox://styles/mapbox/light-v11',
   center: [lng, lat],
   zoom: 16,
-  pitch: 45,
-  antialias: true,
+  pitch: 55,
+  bearing: -20,
+  antialias: true
 });
 
 if (navigator.geolocation) {
@@ -195,55 +194,163 @@ map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-ri
 function getDate() { const d = new Date(); d.setHours(~~(mins/60), mins%60, 0, 0); return d; }
 function toDeg(r) { return r * 180 / Math.PI; }
 
-// LA MAGIE DES OMBRES WEBGL DE MAPBOX (Zéro calcul manuel, réalisme à 100%)
-function updateSunLightAt(m) {
-  if (!map.isStyleLoaded()) return;
-  const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), Math.round((m%1)*60), 0);
-  const pos = SunCalc.getPosition(d, lat, lng);
-  const alt = toDeg(pos.altitude), az = toDeg(pos.azimuth);
-  
-  // Correction de l'azimut pour le moteur de Mapbox
-  const mapboxAz = (az + 180) % 360;
-  const polar = Math.max(0, Math.min(90, 90 - alt));
-  
-  let color = '#ffffff', intensity = 0.6;
-  if (alt < -6) { intensity = 0.05; color = '#4a5b7d'; }
-  else if (alt <= 0) { color = '#ffb067'; intensity = 0.3; }
-  else if (alt < 15) { color = '#ffdbb0'; intensity = 0.5; }
+// --- 1. L'ARCHITECTURE DE JEU VIDÉO : CACHING ---
+let buildingCache = [];
 
+function updateBuildingCache() {
+  if (!map.getLayer('3d-buildings')) return;
   try {
-    // Cette fonction projette VRAIMENT les ombres des bâtiments sur le sol et les autres toits !
-    map.setLights([
-      { id: 'ambient', type: 'ambient', properties: { color: '#ffffff', intensity: 0.4 } },
-      { id: 'sun', type: 'directional', properties: {
-          color: color,
-          intensity: intensity,
-          direction: [mapboxAz, polar],
-          'cast-shadows': true, // Le secret est ici
-          'shadow-intensity': alt > 0 ? Math.min(1, alt / 20 + 0.1) : 0
-      }}
-    ]);
-    map.triggerRepaint(); // Assure la fluidité extrême sans freeze
+    const features = map.queryRenderedFeatures({ layers: ['3d-buildings'] });
+    const seen = new Set();
+    buildingCache = [];
+
+    for (let f of features) {
+      const key = f.id || (f.geometry.coordinates[0][0].join(','));
+      if (!seen.has(key)) {
+        seen.add(key);
+        let ring = f.geometry.coordinates[0];
+        if (f.geometry.type === 'MultiPolygon') ring = f.geometry.coordinates[0][0];
+        buildingCache.push({ h: f.properties.height || 5, ring: ring });
+      }
+    }
   } catch(e) {}
 }
 
+map.on('moveend', updateBuildingCache);
+map.on('idle', updateBuildingCache);
+
+// --- 2. LE MOTEUR GÉOMÉTRIQUE : THROTTLING & PRÉCISION ---
+let lastShadowTime = 0;
+
+function computeAndDrawShadows(force = false) {
+  const now = performance.now();
+  if (!force && now - lastShadowTime < 40) return; // Throttling (25 fps)
+  lastShadowTime = now;
+
+  if (!map.getSource('shadows')) return;
+
+  const d = new Date();
+  d.setHours(Math.floor(renderedMins/60), Math.floor(renderedMins%60), 0, 0);
+  const pos = SunCalc.getPosition(d, lat, lng);
+  const alt = pos.altitude;
+  const az = pos.azimuth;
+
+  if (alt <= 0.01) {
+    map.getSource('shadows').setData({ type: 'FeatureCollection', features: [] });
+    return;
+  }
+
+  const shadowFactor = 1 / Math.tan(alt);
+  const sinAz = Math.sin(az);
+  const cosAz = Math.cos(az);
+  
+  const latRad = lat * Math.PI / 180;
+  const mPerDegLat = 111320;
+  const mPerDegLng = 111320 * Math.cos(latRad);
+
+  const shadowFeatures = [];
+
+  for (let b of buildingCache) {
+    const shadowLen = b.h * shadowFactor;
+    const dLat = (shadowLen * cosAz) / mPerDegLat;
+    const dLng = (shadowLen * sinAz) / mPerDegLng;
+
+    const offsetRing = b.ring.map(pt => [pt[0] + dLng, pt[1] - dLat]);
+    
+    shadowFeatures.push({
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [[...b.ring, ...offsetRing.reverse()]] }
+    });
+  }
+
+  map.getSource('shadows').setData({ type: 'FeatureCollection', features: shadowFeatures });
+}
+
+// L'ÉCLAIRAGE MAPBOX SÉCURISÉ (Murs 3D uniquement, pas d'erreur JS)
+function updateSunLightAt(m) {
+  if (!map.isStyleLoaded()) return;
+  const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
+  const pos = SunCalc.getPosition(d, lat, lng);
+  const alt = toDeg(pos.altitude), az = toDeg(pos.azimuth);
+  
+  const mapboxAz = (az + 180) % 360;
+  const mapboxPolar = Math.max(0, Math.min(90, 90 - alt));
+  
+  let color = '#ffffff', intensity = 0.5;
+  if (alt < -6) { intensity = 0.05; color = '#1a2035'; }
+  else if (alt <= 0) { color = '#ffad5c'; intensity = 0.2; }
+  else if (alt < 15) { color = '#ffdbb0'; intensity = 0.4; }
+
+  try {
+    // API v2 sécurisée qui ne fait pas planter la carte
+    map.setLight({
+      anchor: 'map', color: color, intensity: intensity, position: [1.5, mapboxAz, mapboxPolar]
+    });
+  } catch(e) {}
+}
+
+// --- 3. L'INJECTION INTELLIGENTE (POIs Sauvegardés) ---
+map.on('style.load', async () => {
+  // L'astuce pour garder les points d'intérêts et les noms de rue VISIBLES :
+  const layers = map.getStyle().layers;
+  let labelLayerId;
+  for (let i = 0; i < layers.length; i++) {
+    if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+      labelLayerId = layers[i].id;
+      break;
+    }
+  }
+
+  // Ajout de la source pour les bâtiments bruts
+  map.addSource('custom-composite', { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' });
+
+  // A. La couche d'ombres (Dessinée EN PREMIER)
+  map.addSource('shadows', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'shadows-layer',
+    type: 'fill',
+    source: 'shadows',
+    paint: {
+      'fill-color': '#0f172a', // Ombre ultra réaliste bleu nuit
+      'fill-opacity': 0.4,
+      'fill-antialias': true
+    }
+  }, labelLayerId); // <-- Inséré SOUS les textes
+
+  // B. La couche des Bâtiments 3D (Dessinée APRES l'ombre, mais SOUS les textes)
+  map.addLayer({
+    'id': '3d-buildings',
+    'source': 'custom-composite',
+    'source-layer': 'building',
+    'filter': ['==', 'extrude', 'true'],
+    'type': 'fill-extrusion',
+    'minzoom': ZOOM_THRESHOLD, 
+    'paint': {
+      'fill-extrusion-color': '#e8e6e3', 
+      'fill-extrusion-height': ['get', 'height'],
+      'fill-extrusion-base': ['get', 'min_height'],
+      'fill-extrusion-opacity': 1.0
+    }
+  }, labelLayerId);
+
+  updateSliderUI();
+  go();
+  startAnimLoop();
+  VENUES = await loadVenues();
+  addVenueMarkers();
+  updateZoomState();
+});
+
+// UI SLIDER & FEEDBACK
 function triggerZoomHint() {
   if (!isFarZoom) return;
   const hint = document.getElementById('zoomHint');
   if (!hint.classList.contains('visible')) return;
-  
   hint.style.transform = 'translateX(-50%) scale(1.08)';
   hint.style.border = '1px solid #E8890C';
-  hint.style.boxShadow = '0 4px 15px rgba(232,137,12,0.4)';
-  
-  setTimeout(() => {
-    hint.style.transform = 'translateX(-50%) scale(1)';
-    hint.style.border = '1px solid rgba(255,184,0,0.25)';
-    hint.style.boxShadow = 'none';
-  }, 250);
+  setTimeout(() => { hint.style.transform = 'translateX(-50%) scale(1)'; hint.style.border = '1px solid rgba(255,184,0,0.25)'; }, 250);
 }
 
-// SLIDER UI
 const track = document.getElementById('sliderTrack');
 const thumb = document.getElementById('sliderThumb');
 
@@ -265,6 +372,7 @@ function pxToMins(clientY) {
 track.addEventListener('mousedown', e => { dragging=true; triggerZoomHint(); mins=pxToMins(e.clientY); updateSliderUI(); go(); e.preventDefault(); });
 document.addEventListener('mousemove', e => { if(!dragging)return; mins=pxToMins(e.clientY); updateSliderUI(); go(); });
 document.addEventListener('mouseup', () => { dragging=false; });
+
 track.addEventListener('touchstart', e => { dragging=true; triggerZoomHint(); mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); e.preventDefault(); }, { passive:false });
 document.addEventListener('touchmove', e => { if(!dragging)return; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); }, { passive:false });
 document.addEventListener('touchend', () => { dragging=false; });
@@ -277,18 +385,22 @@ function updateStatus() {
   document.getElementById('timeTxt').textContent = h+':'+m;
 }
 
-// L'ANIMATION (Fluide avec le Lerp)
+// LA BOUCLE D'ANIMATION
 let targetMins = mins, renderedMins = mins, rafId = null;
 
 function animLoop() {
   const diff = targetMins - renderedMins;
   
   if (Math.abs(diff) > 0.05) {
-    renderedMins += diff * 0.15; // Interpolation fluide
-    if (map.isStyleLoaded()) { updateSunLightAt(renderedMins); }
-    if (isFarZoom) { drawShadowOverlay(); }
+    renderedMins += diff * 0.2; // Fluidité (Lerp)
+    if (map.isStyleLoaded()) {
+      updateSunLightAt(renderedMins);
+      computeAndDrawShadows(false); // Mode "freiné" (Throttle) pendant le glissement
+    }
+    if (isFarZoom) drawShadowOverlay();
   } else {
     renderedMins = targetMins;
+    if (map.isStyleLoaded()) computeAndDrawShadows(true); // Forcé à l'arrêt
   }
 
   rafId = requestAnimationFrame(animLoop);
@@ -317,46 +429,11 @@ function updateZoomState() {
   }
 }
 
-map.on('style.load', async () => {
-  // L'ASTUCE DES POIS : On cherche la couche des labels pour insérer la 3D en dessous
-  const layers = map.getStyle().layers;
-  let labelLayerId;
-  for (let i = 0; i < layers.length; i++) {
-    if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
-      labelLayerId = layers[i].id;
-      break;
-    }
-  }
-
-  // Ajout de notre propre couche de bâtiments 3D
-  map.addLayer({
-    'id': '3d-buildings',
-    'source': 'composite',
-    'source-layer': 'building',
-    'filter': ['==', 'extrude', 'true'],
-    'type': 'fill-extrusion',
-    'minzoom': ZOOM_THRESHOLD, // S'active dès 14.0 !
-    'paint': {
-      'fill-extrusion-color': '#e8e6e3', // Couleur neutre pour bien voir l'ombre dessus
-      'fill-extrusion-height': ['get', 'height'],
-      'fill-extrusion-base': ['get', 'min_height'],
-      'fill-extrusion-opacity': 1.0
-    }
-  }, labelLayerId); // <-- LA MAGIE : Les bâtiments sont insérés SOUS les textes et POIs !
-
-  updateSliderUI();
-  go();
-  startAnimLoop();
-  VENUES = await loadVenues();
-  addVenueMarkers();
-  updateZoomState();
-});
-
 map.on('zoom', updateZoomState);
 map.on('zoomend', updateZoomState);
 window.addEventListener('resize', ()=>{ resizeOverlay(); updateSliderUI(); });
 
-// DESSIN DU VOILE 2D (Pour simuler le soleil quand on est très haut dans le ciel)
+// DESSIN DU VOILE 2D GLOBAL
 const overlayCanvas = document.getElementById('shadowOverlay');
 const overlayCtx = overlayCanvas.getContext('2d');
 function resizeOverlay() { overlayCanvas.width=window.innerWidth; overlayCanvas.height=window.innerHeight; }
@@ -378,6 +455,10 @@ function drawShadowOverlay() {
   const a=strength*0.38;
   g.addColorStop(0,'rgba(5,10,30,0)');g.addColorStop(0.3,`rgba(5,10,30,${a*0.4})`);g.addColorStop(1,`rgba(5,10,30,${a})`);
   overlayCtx.fillStyle=g;overlayCtx.fillRect(0,0,W,H);
+  const sx=cx-Math.cos(canvasAngle)*len*0.4,sy=cy-Math.sin(canvasAngle)*len*0.4;
+  const sg=overlayCtx.createRadialGradient(sx,sy,0,sx,sy,len*0.55);
+  sg.addColorStop(0,`rgba(255,200,60,${Math.min(0.07,alt/400)})`);sg.addColorStop(1,'rgba(255,200,60,0)');
+  overlayCtx.fillStyle=sg;overlayCtx.fillRect(0,0,W,H);
 }
 
 // RECHERCHE ET GEOLOC
@@ -464,7 +545,7 @@ async function trackClick(venueId, clickType) {
   } catch(e) {}
 }
 
-// GESTION DES VENUES (Supabase)
+// GESTION DES VENUES
 let VENUES = [];
 let currentVenue = null;
 
