@@ -305,7 +305,7 @@ function animLoop() {
     if (isFarZoom) drawShadowOverlay();
   }
   // Always update sun every frame when moving, every 30 frames when idle
-  if (Math.abs(diff) > 0.02 || frameCount % 30 === 0) {
+  if (Math.abs(diff) > 0.02 || frameCount % 5 === 0) {
     if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
   }
   rafId = requestAnimationFrame(animLoop);
@@ -326,6 +326,10 @@ map.on('style.load', async () => {
 });
 
 // Re-apply lights every time Mapbox reloads style (happens on zoom level changes)
+map.on('render', () => {
+  if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
+});
+
 map.on('styledata', () => {
   if (!map.isStyleLoaded()) return;
   try { map.setConfigProperty('basemap', 'show3dObjects', true); } catch(e) {}
