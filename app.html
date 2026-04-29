@@ -317,129 +317,19 @@ function go() {
   updateStatus();
   updateVenuePins();
   targetMins = mins;
-  }
+}
 
 map.on('style.load', async () => {
   try { map.setConfigProperty('basemap','show3dObjects',true); map.setConfigProperty('basemap','lightPreset','day'); } catch(e) {}
 
-  // Shadow GeoJSON layer
-  map.addSource('shadows', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-  map.addLayer({
-    id: 'shadows-layer', type: 'fill', source: 'shadows',
-    paint: { 'fill-color': '#0a0d1a', 'fill-opacity': 0.45 }
-  }); // add shadow layer
-
+  // SHADOW ENGINE MANUEL RETIRÉ ICI
+  
   updateSliderUI();
   go();
   startAnimLoop();
   VENUES = await loadVenues();
   addVenueMarkers();
   updateZoomState();
-  scheduleShadowUpdate();
-});
-
-// ── GEOMETRIC SHADOW ENGINE ─────────────────────────────────────────
-let shadowDebounce = null;
-
-function scheduleShadowUpdate() {
-  clearTimeout(shadowDebounce);
-  shadowDebounce = setTimeout(computeAndDrawShadows, 80);
-}
-
-function computeAndDrawShadows() {
-  if (!map.isStyleLoaded()) return;
-  const src = map.getSource('shadows');
-  if (!src) return;
-
-  // Sun position at current time
-  const d = new Date();
-  d.setHours(Math.floor(renderedMins/60), Math.floor(renderedMins%60), 0, 0);
-  const pos = SunCalc.getPosition(d, lat, lng);
-  const alt = pos.altitude; // radians
-  const az  = pos.azimuth;  // radians, 0=south, positive=west
-
-  // No shadows at night
-  if (alt <= 0.01) {
-    src.setData({ type: 'FeatureCollection', features: [] });
-    return;
-  }
-
-  // Shadow length factor (meters per meter of height)
-  const shadowFactor = 1 / Math.tan(alt);
-
-  // Direction vector in geographic degrees
-  // Convert azimuth to cartesian: az=0 is south, positive goes west
-  // shadow falls OPPOSITE to sun direction
-  const sinAz = Math.sin(az);
-  const cosAz = Math.cos(az);
-
-  // Get visible buildings
-  let features;
-  try {
-    features = map.querySourceFeatures('composite', { sourceLayer: 'building' })
-      .filter(f => f.properties && f.properties.underground !== 'true'
-        && (f.properties.height || f.properties.render_height)
-        && f.geometry && f.geometry.type === 'Polygon');
-  } catch(e) { return; }
-
-  // Deduplicate by id
-  const seen = new Set();
-  const unique = features.filter(f => {
-    const key = f.id || JSON.stringify(f.geometry.coordinates[0][0]);
-    if (seen.has(key)) return false;
-    seen.add(key); return true;
-  });
-
-  const shadowFeatures = unique.map(f => {
-    const h = f.properties.height || f.properties.render_height || 5;
-    const shadowLen = h * shadowFactor; // meters
-
-    // Convert meters to degrees (Montréal ~45.5°N)
-    // 1° lat ≈ 111320m, 1° lng ≈ 111320 * cos(lat)
-    const latRad = lat * Math.PI / 180;
-    const mPerDegLat = 111320;
-    const mPerDegLng = 111320 * Math.cos(latRad);
-    const dLat = (shadowLen * cosAz) / mPerDegLat;
-    const dLng = (shadowLen * sinAz) / mPerDegLng;
-
-    // Build shadow polygon = building footprint offset by shadow vector
-    const ring = f.geometry.coordinates[0];
-    const offsetRing = ring.map(([lng, lat]) => [lng + dLng, lat - dLat]);
-
-    // Merge footprint + offset to get full shadow shape
-    return {
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        // Combine original footprint + shadow offset as a union approximation
-        coordinates: [[...ring, ...offsetRing.slice().reverse()]]
-      }
-    };
-  }).filter(Boolean);
-
-  src.setData({ type: 'FeatureCollection', features: shadowFeatures });
-}
-
-// Trigger shadow update on map events (debounced)
-map.on('moveend', scheduleShadowUpdate);
-map.on('zoomend', scheduleShadowUpdate);
-map.on('pitchend', scheduleShadowUpdate);
-map.on('rotateend', scheduleShadowUpdate);
-map.on('idle', scheduleShadowUpdate);
-
-
-
-
-
-// Re-apply lights every time Mapbox reloads style (happens on zoom level changes)
-map.on('render', () => {
-  if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
-});
-
-map.on('styledata', () => {
-  if (!map.isStyleLoaded()) return;
-  try { map.setConfigProperty('basemap', 'show3dObjects', true); } catch(e) {}
-  try { updateSunLightAt(renderedMins); } catch(e) {}
 });
 
 // GEOLOC
