@@ -254,6 +254,8 @@ function updateSunLightAt(m) {
       { id:'ambient', type:'ambient', properties:{ color, intensity:intensity*0.4 } },
       { id:'sun', type:'directional', properties:{ color, intensity, direction:[mapboxAz,polar], 'shadow-intensity':alt>0?Math.min(1,alt/30+0.3):0, 'cast-shadows':true } },
     ]);
+    // FIX CRUCIAL : On force Mapbox à redessiner immédiatement pour éviter le "freeze" de l'ombre
+    map.triggerRepaint();
   } catch(e) {}
 }
 
@@ -295,7 +297,7 @@ function pxToMins(clientY) {
 
 track.addEventListener('mousedown', e => { 
   dragging=true; 
-  if (isFarZoom) triggerZoomHint(); // Déclenche l'effet si on est loin
+  if (isFarZoom) triggerZoomHint();
   mins=pxToMins(e.clientY); 
   updateSliderUI(); 
   go(); 
@@ -306,7 +308,7 @@ document.addEventListener('mouseup', () => { dragging=false; });
 
 track.addEventListener('touchstart', e => { 
   dragging=true; 
-  if (isFarZoom) triggerZoomHint(); // Déclenche l'effet si on est loin
+  if (isFarZoom) triggerZoomHint();
   mins=pxToMins(e.touches[0].clientY); 
   updateSliderUI(); 
   go(); 
@@ -323,7 +325,7 @@ function updateStatus() {
   document.getElementById('timeTxt').textContent = h+':'+m;
 }
 
-// ANIMATION LOOP OPTIMISÉE (Zéro Freeze, Sauvegarde GPU)
+// ANIMATION LOOP OPTIMISÉE
 let targetMins = mins, renderedMins = mins, rafId = null, isFarZoom = false, frameCount = 0;
 
 function animLoop() {
@@ -336,18 +338,11 @@ function animLoop() {
     renderedMins = targetMins;
   }
 
-  // 1. Si on est dézoomé : on calcule SEULEMENT l'overlay 2D (sauvegarde massive du CPU/GPU)
-  if (isFarZoom) {
-    if (Math.abs(diff) > 0.02 || frameCount % 5 === 0) {
-      drawShadowOverlay();
-    }
-  } 
-  // 2. Si on est zoomé (3D active) : on met à jour les lumières de Mapbox
-  else {
-    if (Math.abs(diff) > 0.02 || frameCount % 5 === 0) {
-      if (map.isStyleLoaded()) { 
-        try { updateSunLightAt(renderedMins); } catch(e) {} 
-      }
+  // On met à jour l'overlay ET la lumière 3D en même temps s'il y a du mouvement
+  if (Math.abs(diff) > 0.02 || frameCount % 5 === 0) {
+    if (isFarZoom) drawShadowOverlay();
+    if (map.isStyleLoaded()) { 
+      try { updateSunLightAt(renderedMins); } catch(e) {} 
     }
   }
 
@@ -562,8 +557,8 @@ document.getElementById('cardBackdrop').addEventListener('touchend', e=>{ e.prev
   card.addEventListener('touchend',()=>{if(!active)return;active=false;card.style.transition='';if(moved>70)closeVenueCard();else card.style.transform='';},{passive:true});
 })();
 
-// ZOOM HINT + OVERLAY : Treshold très haut pour éviter la zone morte
-const ZOOM_THRESHOLD = 16.0; 
+// ZOOM HINT + OVERLAY : Treshold très haut (16.2) pour éviter la zone morte
+const ZOOM_THRESHOLD = 16.2; 
 const overlayCanvas = document.getElementById('shadowOverlay');
 const overlayCtx = overlayCanvas.getContext('2d');
 
@@ -595,17 +590,16 @@ function drawShadowOverlay() {
 function updateZoomState() {
   isFarZoom=map.getZoom()<ZOOM_THRESHOLD;
   const hint=document.getElementById('zoomHint');
+  
   if(isFarZoom){
     overlayCanvas.style.opacity='1';
     hint.classList.add('visible');
     drawShadowOverlay();
-    // Quand on dézoom, on coupe la lumière directionnelle de mapbox pour sauver le GPU
-    try { map.setLights([{ id:'ambient', type:'ambient', properties:{ color: '#fff8f0', intensity: 0.85 } }]); } catch(e) {}
   }
   else{
     overlayCanvas.style.opacity='0';
     hint.classList.remove('visible');
-    // On relance la lumière mapbox immédiatement au zoom
+    // On s'assure que Mapbox prend bien le relais avec la bonne heure
     if (map.isStyleLoaded()) { try { updateSunLightAt(renderedMins); } catch(e) {} }
   }
 }
