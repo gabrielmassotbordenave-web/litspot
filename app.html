@@ -175,7 +175,7 @@ let dragging = false;
 let isFarZoom = false;
 const ZOOM_THRESHOLD = 14.5; 
 
-// ON REVIENT AU STYLE SÉCURISÉ (light-v11) QUI ÉVITE L'ÉCRAN GRIS
+// Style Light classique
 const map = new mapboxgl.Map({
   container: 'map',
   style: 'mapbox://styles/mapbox/light-v11',
@@ -194,7 +194,28 @@ map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-ri
 function getDate() { const d = new Date(); d.setHours(~~(mins/60), mins%60, 0, 0); return d; }
 function toDeg(r) { return r * 180 / Math.PI; }
 
-// --- 1. L'ARCHITECTURE DE JEU VIDÉO : CACHING ---
+// --- 1. L'ALGORITHME MAGIQUE (Convex Hull) ---
+// Ceci garantit que les ombres ont une forme parfaite et solide. Fini les lignes qui se croisent !
+function getConvexHull(points) {
+  if (points.length < 3) return points;
+  // Trie les points de gauche à droite
+  const pts = points.slice().sort((a, b) => a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]);
+  const lower = [];
+  for (let i = 0; i < pts.length; i++) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pts[i]) <= 0) lower.pop();
+    lower.push(pts[i]);
+  }
+  const upper = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], pts[i]) <= 0) upper.pop();
+    upper.push(pts[i]);
+  }
+  upper.pop(); lower.pop();
+  return lower.concat(upper);
+}
+function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }
+
+// --- 2. LE CACHING ---
 let buildingCache = [];
 
 function updateBuildingCache() {
@@ -219,12 +240,12 @@ function updateBuildingCache() {
 map.on('moveend', updateBuildingCache);
 map.on('idle', updateBuildingCache);
 
-// --- 2. LE MOTEUR GÉOMÉTRIQUE : THROTTLING & PRÉCISION ---
+// --- 3. LE MOTEUR GÉOMÉTRIQUE OPTIMISÉ ---
 let lastShadowTime = 0;
 
 function computeAndDrawShadows(force = false) {
   const now = performance.now();
-  if (!force && now - lastShadowTime < 40) return; // Throttling (25 fps)
+  if (!force && now - lastShadowTime < 30) return; // Ultra fluide (33 fps max)
   lastShadowTime = now;
 
   if (!map.getSource('shadows')) return;
@@ -255,18 +276,27 @@ function computeAndDrawShadows(force = false) {
     const dLat = (shadowLen * cosAz) / mPerDegLat;
     const dLng = (shadowLen * sinAz) / mPerDegLng;
 
-    const offsetRing = b.ring.map(pt => [pt[0] + dLng, pt[1] - dLat]);
+    const allPoints = [];
+    for (let pt of b.ring) {
+      allPoints.push(pt); // Point original du bâtiment
+      allPoints.push([pt[0] + dLng, pt[1] - dLat]); // Point décalé de l'ombre
+    }
     
-    shadowFeatures.push({
-      type: 'Feature',
-      geometry: { type: 'Polygon', coordinates: [[...b.ring, ...offsetRing.reverse()]] }
-    });
+    // On emballe le tout dans une forme parfaite
+    const hull = getConvexHull(allPoints);
+    if (hull.length >= 3) {
+       hull.push(hull[0]); // Ferme le polygone
+       shadowFeatures.push({
+         type: 'Feature',
+         geometry: { type: 'Polygon', coordinates: [hull] }
+       });
+    }
   }
 
   map.getSource('shadows').setData({ type: 'FeatureCollection', features: shadowFeatures });
 }
 
-// L'ÉCLAIRAGE MAPBOX SÉCURISÉ (Murs 3D uniquement, pas d'erreur JS)
+// L'ÉCLAIRAGE DES BÂTIMENTS
 function updateSunLightAt(m) {
   if (!map.isStyleLoaded()) return;
   const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
@@ -282,16 +312,17 @@ function updateSunLightAt(m) {
   else if (alt < 15) { color = '#ffdbb0'; intensity = 0.4; }
 
   try {
-    // API v2 sécurisée qui ne fait pas planter la carte
-    map.setLight({
-      anchor: 'map', color: color, intensity: intensity, position: [1.5, mapboxAz, mapboxPolar]
-    });
+    map.setLights([
+      { id:'ambient', type:'ambient', properties:{ color: '#ffffff', intensity: 0.4 } },
+      { id:'sun', type:'directional', properties:{ color, intensity, direction:[mapboxAz,mapboxPolar] } },
+    ]);
   } catch(e) {}
 }
 
-// --- 3. L'INJECTION INTELLIGENTE (POIs Sauvegardés) ---
+// --- 4. INSERTION INTELLIGENTE SOUS LES POINTS D'INTÉRÊT ---
 map.on('style.load', async () => {
-  // L'astuce pour garder les points d'intérêts et les noms de rue VISIBLES :
+  
+  // On trouve la première couche de texte (rues, restos)
   const layers = map.getStyle().layers;
   let labelLayerId;
   for (let i = 0; i < layers.length; i++) {
@@ -301,23 +332,22 @@ map.on('style.load', async () => {
     }
   }
 
-  // Ajout de la source pour les bâtiments bruts
   map.addSource('custom-composite', { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' });
 
-  // A. La couche d'ombres (Dessinée EN PREMIER)
+  // Les Ombres au sol
   map.addSource('shadows', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({
     id: 'shadows-layer',
     type: 'fill',
     source: 'shadows',
     paint: {
-      'fill-color': '#0f172a', // Ombre ultra réaliste bleu nuit
-      'fill-opacity': 0.4,
+      'fill-color': '#0f172a',
+      'fill-opacity': 0.35, // Opacité parfaite pour lire la rue en dessous
       'fill-antialias': true
     }
-  }, labelLayerId); // <-- Inséré SOUS les textes
+  }, labelLayerId); // <-- INSÉRÉ SOUS LES TEXTES
 
-  // B. La couche des Bâtiments 3D (Dessinée APRES l'ombre, mais SOUS les textes)
+  // Les Bâtiments 3D
   map.addLayer({
     'id': '3d-buildings',
     'source': 'custom-composite',
@@ -326,12 +356,12 @@ map.on('style.load', async () => {
     'type': 'fill-extrusion',
     'minzoom': ZOOM_THRESHOLD, 
     'paint': {
-      'fill-extrusion-color': '#e8e6e3', 
+      'fill-extrusion-color': '#f2f0eb', 
       'fill-extrusion-height': ['get', 'height'],
       'fill-extrusion-base': ['get', 'min_height'],
       'fill-extrusion-opacity': 1.0
     }
-  }, labelLayerId);
+  }, labelLayerId); // <-- INSÉRÉ SOUS LES TEXTES
 
   updateSliderUI();
   go();
@@ -372,7 +402,6 @@ function pxToMins(clientY) {
 track.addEventListener('mousedown', e => { dragging=true; triggerZoomHint(); mins=pxToMins(e.clientY); updateSliderUI(); go(); e.preventDefault(); });
 document.addEventListener('mousemove', e => { if(!dragging)return; mins=pxToMins(e.clientY); updateSliderUI(); go(); });
 document.addEventListener('mouseup', () => { dragging=false; });
-
 track.addEventListener('touchstart', e => { dragging=true; triggerZoomHint(); mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); e.preventDefault(); }, { passive:false });
 document.addEventListener('touchmove', e => { if(!dragging)return; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); }, { passive:false });
 document.addEventListener('touchend', () => { dragging=false; });
@@ -385,22 +414,22 @@ function updateStatus() {
   document.getElementById('timeTxt').textContent = h+':'+m;
 }
 
-// LA BOUCLE D'ANIMATION
+// LA BOUCLE D'ANIMATION (Lerp fluide)
 let targetMins = mins, renderedMins = mins, rafId = null;
 
 function animLoop() {
   const diff = targetMins - renderedMins;
   
   if (Math.abs(diff) > 0.05) {
-    renderedMins += diff * 0.2; // Fluidité (Lerp)
+    renderedMins += diff * 0.25; // Lerp pour la fluidité
     if (map.isStyleLoaded()) {
       updateSunLightAt(renderedMins);
-      computeAndDrawShadows(false); // Mode "freiné" (Throttle) pendant le glissement
+      computeAndDrawShadows(false); // Mode "Throttle" pendant le mouvement
     }
     if (isFarZoom) drawShadowOverlay();
   } else {
     renderedMins = targetMins;
-    if (map.isStyleLoaded()) computeAndDrawShadows(true); // Forcé à l'arrêt
+    if (map.isStyleLoaded()) computeAndDrawShadows(true); // Calcul parfait à l'arrêt
   }
 
   rafId = requestAnimationFrame(animLoop);
