@@ -175,7 +175,7 @@ const ZOOM_THRESHOLD = 14.5;
 
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/standard',
+  style: 'mapbox://styles/mapbox/light-v11',
   center: [lng, lat],
   zoom: 16,
   pitch: 50,
@@ -344,8 +344,23 @@ map.on('style.load', async () => {
     paint: { 'fill-color':'#0f172a', 'fill-opacity':0.38, 'fill-antialias':true }
   }, labelLayerId);
 
-  // Standard style has 3D buildings built-in
-  try { map.setConfigProperty('basemap','show3dObjects',true); map.setConfigProperty('basemap','lightPreset','day'); } catch(e) {}
+  // Add 3D buildings on top of light-v11
+  if (!map.getLayer('3d-buildings')) {
+    map.addLayer({
+      id: '3d-buildings',
+      source: 'composite',
+      'source-layer': 'building',
+      filter: ['all', ['==', 'extrude', 'true'], ['has', 'height']],
+      type: 'fill-extrusion',
+      minzoom: ZOOM_THRESHOLD,
+      paint: {
+        'fill-extrusion-color': '#e8e4dc',
+        'fill-extrusion-height': ['get', 'height'],
+        'fill-extrusion-base': ['get', 'min_height'],
+        'fill-extrusion-opacity': 0.85,
+      }
+    }, labelLayerId);
+  }
 
   updateSliderUI();
   go();
