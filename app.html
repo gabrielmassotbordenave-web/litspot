@@ -1,219 +1,509 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LitSpot — Find Sunny Spots & Sun-Lit Terraces Near You</title>
-  
-  <!-- Polices -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
-  
-  <!-- MapLibre GL JS (Pour la carte de base 2D) -->
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-  
-  <!-- Deck.gl (Pour la 3D, le Shadow Mapping et les performances GPU) -->
-  <script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
-  
-  <!-- SunCalc (Le Moteur Astronomique SPA) -->
-  <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LitSpot — Find Sunny Spots & Sun-Lit Terraces Near You</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; background: #e2e8f0; }
-    #map-container { position: absolute; inset: 0; }
-    
-    /* --- UI DU SLIDER TEMPÔREL --- */
-    .time-pill { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 100; background: rgba(28,20,16,0.92); border: 1px solid rgba(255,240,220,0.14); border-radius: 22px; padding: 15px 30px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); width: 80%; max-width: 400px; transition: opacity 0.3s ease; }
-    .pill-time-group { display: flex; flex-direction: column; align-items: center; min-width: 60px;}
-    .pill-time { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; color: #FFF5E6; line-height: 1; white-space: nowrap; }
-    .pill-status { font-size: 20px; line-height: 1; }
-    
-    /* Slider Range natif (plus stable sur mobile) */
-    .time-slider { flex-grow: 1; -webkit-appearance: none; appearance: none; width: 100%; height: 6px; background: rgba(255,240,220,0.14); border-radius: 3px; outline: none; }
-    .time-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; background: radial-gradient(circle at 38% 38%, #FFE07A, #E8890C); border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5); }
-    .time-slider::-moz-range-thumb { width: 24px; height: 24px; background: radial-gradient(circle at 38% 38%, #FFE07A, #E8890C); border-radius: 50%; cursor: pointer; border: none; box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5); }
-  </style>
+<!-- 1. Mapbox GL JS (Pour la carte 2D de base) -->
+<script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
+<link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
+
+<!-- 2. Deck.gl (Pour la 3D, le Shadow Mapping GPU) -->
+<script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
+<!-- Loader pour lire les données massives de Google 3D Tiles -->
+<script src="https://unpkg.com/@loaders.gl/3d-tiles@3.4.4/dist/dist.min.js"></script>
+
+<!-- 3. SunCalc (Le Moteur Astronomique) -->
+<script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; background: #e2e8f0;}
+#map { position: absolute; inset: 0; }
+
+.mapboxgl-ctrl-group { background: rgba(255,255,255,0.92) !important; border: 1px solid rgba(0,0,0,0.08) !important; }
+.mapboxgl-ctrl-attrib { font-size: 9px !important; }
+.mapboxgl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom) + 16px) !important; right: 12px !important; }
+
+/* SEARCH */
+.top-bar { position: absolute; top: calc(env(safe-area-inset-top) + 12px); left: 12px; right: 12px; z-index: 100; display: flex; gap: 10px; align-items: center; }
+.search-wrap { position: relative; flex: 1; }
+#searchInput { width: 100%; background: rgba(255,255,255,0.97); border: 1.5px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 14px 44px 14px 16px; font-family: 'Outfit', sans-serif; font-size: 16px; color: #1a1a2e; outline: none; box-shadow: 0 4px 20px rgba(0,0,0,0.12); -webkit-appearance: none; }
+#searchInput:focus { border-color: #E8890C; }
+.s-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; pointer-events: none; opacity: .35; }
+#spinner { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; border: 2px solid rgba(0,0,0,0.08); border-top-color: #E8890C; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+@keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+@keyframes pinDrop { from { transform: translateY(-20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+@keyframes pinGlow { 0%,100% { box-shadow: 0 2px 10px rgba(0,0,0,0.22), 0 0 0 0px rgba(255,184,0,0.5); } 50% { box-shadow: 0 2px 10px rgba(0,0,0,0.22), 0 0 0 8px rgba(255,184,0,0); } }
+#ac-list { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: rgba(255,255,255,0.99); border: 1px solid rgba(0,0,0,0.08); border-radius: 14px; overflow: hidden; box-shadow: 0 12px 36px rgba(0,0,0,0.14); z-index: 500; display: none; }
+.ac-item { padding: 14px 16px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.04); }
+.ac-item:active { background: rgba(232,137,12,0.08); }
+.ac-name { font-size: 15px; font-weight: 500; color: #1a1a2e; }
+.ac-addr { font-size: 12px; color: rgba(0,0,0,0.35); margin-top: 3px; }
+.geo-btn { width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0; background: rgba(255,255,255,0.97); border: 1.5px solid rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+
+/* TIME PILL */
+.time-pill { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); z-index: 100; background: rgba(28,20,16,0.92); border: 1px solid rgba(255,240,220,0.14); border-radius: 22px; padding: 14px 0; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); width: 56px; transition: opacity 0.3s ease; }
+.pill-time { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 600; color: #FFF5E6; letter-spacing: -0.5px; line-height: 1; text-align: center; white-space: nowrap; width: 100%; }
+.pill-status { font-size: 18px; line-height: 1; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.slider-track { position: relative; width: 4px; height: 130px; background: rgba(255,240,220,0.14); border-radius: 2px; cursor: pointer; touch-action: none; }
+.slider-thumb { position: absolute; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: radial-gradient(circle at 38% 38%, #FFE07A, #E8890C); border-radius: 50%; box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5); }
+
+/* VENUE CARD */
+.venue-card { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #FFFFFF; border: 1px solid rgba(0,0,0,0.06); border-radius: 24px 24px 0 0; overflow: hidden; box-shadow: 0 -8px 32px rgba(0,0,0,0.18); transform: translateY(100%); transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1); pointer-events: none; padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
+.venue-card.visible { transform: translateY(0); pointer-events: all; }
+.card-handle { width: 36px; height: 4px; background: rgba(0,0,0,0.12); border-radius: 2px; margin: 12px auto 0; }
+.venue-card-photo { width: 100%; height: 140px; object-fit: cover; display: none; }
+.venue-card-header { padding: 10px 20px 10px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+.venue-card.has-photo .venue-card-header { position: relative; padding: 0; border-bottom: none; }
+.venue-card.has-photo .venue-card-header-inner { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px 20px 14px; background: linear-gradient(transparent, rgba(28,20,16,0.95)); }
+.venue-card:not(.has-photo) .venue-card-header-inner { padding: 12px 20px 14px; }
+.venue-card-status { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.sun { background: #E8890C; box-shadow: 0 0 6px rgba(232,137,12,0.7); }
+.status-dot.shade { background: #b0a090; }
+.venue-status-txt { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
+.venue-status-txt.sun { color: #E8890C; }
+.venue-status-txt.shade { color: #8a7a6a; }
+.venue-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; color: #1a0e08; margin-bottom: 2px; }
+.venue-type { font-size: 13px; color: rgba(28,20,16,0.55); font-weight: 400; }
+.venue-card-body { padding: 10px 20px 14px; }
+.sun-schedule { background: #FFF3E0; border: 1px solid rgba(232,137,12,0.15); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+.sun-schedule-title { font-size: 10px; color: rgba(28,20,16,0.5); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; font-weight: 600; }
+.sun-slots { display: flex; flex-direction: column; gap: 10px; }
+.sun-slot { display: flex; flex-direction: column; gap: 6px; }
+.slot-times { display: flex; justify-content: space-between; align-items: center; }
+.slot-time-label { font-size: 13px; font-weight: 600; color: #E8890C; }
+.slot-arrow { font-size: 11px; color: rgba(28,20,16,0.25); }
+.slot-bar-wrap { position: relative; height: 6px; border-radius: 3px; background: rgba(28,20,16,0.08); }
+.slot-fill { position: absolute; top: 0; height: 100%; border-radius: 3px; background: #E8890C; }
+.slot-now-line { position: absolute; top: -3px; width: 2px; height: 12px; background: #fff; border-radius: 1px; opacity: 0.8; }
+.slot-day-labels { display: flex; justify-content: space-between; font-size: 9px; color: rgba(28,20,16,0.45); margin-top: 2px; }
+.venue-cta { display: flex; gap: 10px; }
+.btn-directions, .btn-reserve { flex: 1; padding: 14px 10px; border-radius: 14px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; border: none; font-family: 'Outfit', sans-serif; }
+.btn-directions { background: #f5f0eb; border: 1.5px solid rgba(0,0,0,0.12); color: rgba(28,20,16,0.8); }
+.btn-reserve { background: #E8890C; color: #fff; }
+.venue-card-close { position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 50%; background: rgba(28,20,16,0.12); border: none; font-size: 16px; font-weight: 700; cursor: pointer; z-index: 2000; }
+#cardBackdrop { display: none; position: fixed; inset: 0; z-index: 999; background: transparent; }
+#cardBackdrop.visible { display: block; }
+#toast { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 20px); left: 50%; transform: translateX(-50%) translateY(8px); background: rgba(28,20,16,0.95); border-radius: 12px; padding: 10px 20px; font-size: 14px; color: #FFF5E6; z-index: 1500; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; white-space: nowrap; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+</style>
 </head>
 <body>
 
-  <!-- Conteneur pour Deck.gl et MapLibre -->
-  <div id="map-container"></div>
+<!-- LE CONTENEUR PRINCIPAL DE LA CARTE -->
+<div id="map"></div>
+<div id="cardBackdrop"></div>
 
-  <!-- Interface Utilisateur : Le Slider Temporel -->
-  <div class="time-pill">
-    <div class="pill-time-group">
-      <div class="pill-status" id="statusEmoji">☀️</div>
-      <div class="pill-time" id="timeTxt">12:00</div>
-    </div>
-    <input type="range" min="0" max="1439" value="720" class="time-slider" id="timeSlider">
+<!-- Search -->
+<div class="top-bar">
+  <div class="search-wrap">
+    <input id="searchInput" type="text" placeholder="Bar, restaurant, address…" autocomplete="off" spellcheck="false">
+    <div class="s-icon">🔍</div>
+    <div id="spinner"></div>
+    <div id="ac-list"></div>
   </div>
+  <button class="geo-btn" id="geoBtn">🎯</button>
+</div>
+
+<!-- Time pill -->
+<div class="time-pill">
+  <div class="pill-time" id="timeTxt">12:00</div>
+  <div class="pill-status" id="statusEmoji">☀️</div>
+  <div class="slider-track" id="sliderTrack">
+    <div class="slider-thumb" id="sliderThumb"></div>
+  </div>
+</div>
+
+<!-- Venue card -->
+<div class="venue-card" id="venueCard">
+  <div class="card-handle"></div>
+  <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
+  <div class="venue-card-header">
+    <img id="vcPhoto" class="venue-card-photo" src="" alt="">
+    <div class="venue-card-header-inner">
+      <div class="venue-card-status">
+        <div class="status-dot sun" id="vcDot"></div>
+        <span class="venue-status-txt sun" id="vcStatus">☀️ In the sun now</span>
+      </div>
+      <div class="venue-name" id="vcName">–</div>
+      <div class="venue-type" id="vcType">–</div>
+    </div>
+  </div>
+  <div class="venue-card-body">
+    <div class="sun-schedule">
+      <div class="sun-schedule-title">Sunny hours today</div>
+      <div class="sun-slots" id="vcSlots"></div>
+    </div>
+    <div class="venue-cta">
+      <button class="btn-directions" id="vcDir">🗺️ Directions</button>
+      <button class="btn-reserve" id="vcRes">Reserve →</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <script>
-  // --- CONFIGURATION INITIALE ---
-  // Nous utilisons la clé Mapbox uniquement pour charger le style de base (Positron) si nécessaire, 
-  // mais MapLibre est utilisé comme moteur de rendu 2D pour éviter les coûts de facturation Mapbox JS.
-  const INITIAL_VIEW_STATE = {
-    longitude: -73.5878, // Montréal
-    latitude: 45.5088,
-    zoom: 15.5,
-    pitch: 55,
-    bearing: -20
-  };
+// --- CONFIGURATION API ---
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
+const GOOGLE_API_KEY = 'AIzaSyBMZODV5KhtvM2Rix0c5dKDmo160QD65Wg';
+mapboxgl.accessToken = MAPBOX_TOKEN;
 
-  // --- ÉTAT GLOBAL ---
-  let currentMinutes = 12 * 60; // Commence à midi
-  let deckgl; // Référence à l'instance Deck.gl
+const SUPABASE_URL = 'https://dogontqbkihwircaldie.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ29udHFia2lod2lyY2FsZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTI3ODYsImV4cCI6MjA5Mjg2ODc4Nn0.5tvkp_zIEMZS8TM1PIYBuEJyBRIIvaTPzU3j9OTbMAA';
 
-  // --- LE MOTEUR D'OMBRE (LightingEffect & Shadow Mapping) ---
-  // C'est le cœur de la nouvelle architecture : le GPU gère la lumière.
-  function getLightingEffect(minutes) {
-    const date = new Date();
-    date.setHours(Math.floor(minutes / 60), Math.floor(minutes % 60), 0, 0);
+// --- ETAT GLOBAL ---
+let lat = 45.5088, lng = -73.5878;
+let userLat = null, userLng = null;
+let mins = new Date().getHours() * 60 + new Date().getMinutes();
+let dragging = false;
+let map;    // L'instance de Mapbox sous-jacente
+let deckgl; // Le Moteur 3D principal
 
-    // Calcul Astronomique précis (SunCalc)
-    const sunPosition = SunCalc.getPosition(date, INITIAL_VIEW_STATE.latitude, INITIAL_VIEW_STATE.longitude);
-    const sunAzimuth = (sunPosition.azimuth * 180) / Math.PI;
-    const sunAltitude = (sunPosition.altitude * 180) / Math.PI;
+let viewState = {
+  longitude: lng,
+  latitude: lat,
+  zoom: 16,
+  pitch: 60, // Angle parfait pour voir les bâtiments 3D de Google
+  bearing: -20
+};
 
-    // Lumière ambiante douce pour ne pas avoir des ombres 100% noires
-    const ambientLight = new deck.AmbientLight({
-      color: [255, 255, 255],
-      intensity: 0.4
-    });
+// --- LE MOTEUR D'OMBRE (GPU) ---
+function getLightingEffect(m) {
+  const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
+  const pos = SunCalc.getPosition(d, lat, lng);
+  const alt = (pos.altitude * 180) / Math.PI;
 
-    // La source de lumière directionnelle qui calcule la "Depth Map" pour les ombres
-    const directionalLight = new deck.SunLight({
-      timestamp: date.getTime(),
-      color: [255, 248, 240], // Couleur chaude du soleil
-      intensity: sunAltitude > 0 ? 1.2 : 0.0, // S'éteint la nuit
-      _shadow: true // ACTIVATION DU SHADOW MAPPING GPU
-    });
-
-    return new deck.LightingEffect({ ambientLight, directionalLight });
-  }
-
-  // --- LES COUCHES 3D (Bâtiments) ---
-  function renderLayers() {
-    // Utilisation de Tile3DLayer pour charger les données géométriques
-    // Option A (Parfaite pour GitHub) : Google Photorealistic 3D Tiles via l'API Deck.gl
-    // Option B (À terme, si tu as un serveur) : URL vers ton fichier CityGML converti en .b3dm
-    
-    // Note: Pour cet exemple statique, nous générons des polygones extrudés simulés via GeoJsonLayer 
-    // car les sources OGC 3D Tiles gratuites sans clé API sont rares en "Vanilla JS".
-    // Dans une version finale avec un serveur, tu remplacerais ceci par Tile3DLayer.
-
-    // Pour te prouver que le Shadow Mapping fonctionne parfaitement avec Deck.gl, 
-    // voici une simulation de bâtiments autour de Montréal.
-    const buildingLayer = new deck.GeoJsonLayer({
-      id: 'simulated-buildings',
-      data: generateSimulatedBuildings(INITIAL_VIEW_STATE.latitude, INITIAL_VIEW_STATE.longitude),
-      extruded: true,
-      wireframe: false,
-      opacity: 1,
-      getElevation: d => d.properties.height,
-      getFillColor: [230, 230, 235], // Couleur de la façade
-      shadowEnabled: true, // EXTRÊMEMENT IMPORTANT : Le bâtiment "cast" (projette) et reçoit des ombres
-      pickable: true
-    });
-
-    // Le sol de base pour "recevoir" les ombres
-    const groundLayer = new deck.PolygonLayer({
-      id: 'ground-receiver',
-      data: [{
-        polygon: [
-          [-73.65, 45.45], [-73.65, 45.55], [-73.50, 45.55], [-73.50, 45.45]
-        ]
-      }],
-      extruded: false,
-      filled: true,
-      getFillColor: [242, 244, 248], // Couleur du sol
-      shadowEnabled: true // Le sol doit recevoir l'ombre
-    });
-
-    return [groundLayer, buildingLayer];
-  }
-
-  // --- INITIALISATION DU MOTEUR DECK.GL ---
-  function initDeckGL() {
-    deckgl = new deck.DeckGL({
-      container: 'map-container',
-      mapStyle: 'https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json', // Fond 2D MapLibre très léger
-      initialViewState: INITIAL_VIEW_STATE,
-      controller: true,
-      
-      // OPTIMISATION VRAM CRITIQUE : Assure 60 FPS lors du glissement du slider
-      useDevicePixels: false, 
-      
-      effects: [getLightingEffect(currentMinutes)],
-      layers: renderLayers(),
-      
-      // Callbacks pour interagir avec la vue
-      onViewStateChange: ({viewState}) => {
-        // Optionnel : on pourrait mettre à jour la vue de la carte 2D ici si on gérait MapLibre séparément
-      }
-    });
-  }
-
-  // --- MISE À JOUR DE LA LUMIÈRE (Le Throttling est géré nativement par WebGL) ---
-  function updateLighting(minutes) {
-    if (!deckgl) return;
-    
-    // Mettre à jour l'interface
-    const h = String(Math.floor(minutes / 60)).padStart(2, '0');
-    const m = String(minutes % 60).padStart(2, '0');
-    document.getElementById('timeTxt').textContent = `${h}:${m}`;
-    
-    const d = new Date(); d.setHours(Math.floor(minutes / 60), Math.floor(minutes % 60), 0, 0);
-    const alt = (SunCalc.getPosition(d, INITIAL_VIEW_STATE.latitude, INITIAL_VIEW_STATE.longitude).altitude * 180) / Math.PI;
-    document.getElementById('statusEmoji').textContent = alt < -6 ? '🌙' : alt <= 0 ? '🌅' : alt < 10 ? '🌤️' : '☀️';
-
-    // Remplacer l'effet d'éclairage dans Deck.gl
-    // WebGL est assez puissant pour faire ça en temps réel (60fps)
-    deckgl.setProps({
-      effects: [getLightingEffect(minutes)]
-    });
-  }
-
-  // --- EVENT LISTENERS ---
-  const timeSlider = document.getElementById('timeSlider');
-  timeSlider.addEventListener('input', (e) => {
-    currentMinutes = parseInt(e.target.value);
-    updateLighting(currentMinutes);
+  // Lumière ambiante pour que la ville ne soit pas 100% noire dans l'ombre
+  const ambientLight = new deck.AmbientLight({
+    color: [255, 255, 255],
+    intensity: alt > 0 ? 1.2 : 0.3
   });
 
-  // Démarrage de l'application
-  initDeckGL();
+  // Le soleil directionnel qui calcule les ombres réelles
+  const directionalLight = new deck.SunLight({
+    timestamp: d.getTime(),
+    color: [255, 248, 240],
+    intensity: alt > 0 ? 3.0 : 0.0, // Lumière forte de jour, éteinte la nuit
+    _shadow: true // LA MAGIE EST ICI
+  });
 
+  return new deck.LightingEffect({ ambientLight, directionalLight });
+}
 
-  // --- FONCTION UTILITAIRE (Pour la démonstration sans serveur) ---
-  // Génère quelques tours de bureaux autour du point central pour montrer les ombres de Deck.gl
-  function generateSimulatedBuildings(lat, lng) {
-    const features = [];
-    const size = 0.0003; // Taille des blocs
-    for (let i = 0; i < 30; i++) {
-      const offsetX = (Math.random() - 0.5) * 0.01;
-      const offsetY = (Math.random() - 0.5) * 0.01;
-      const height = 20 + Math.random() * 80; // Hauteur entre 20m et 100m
-      
-      features.push({
-        type: 'Feature',
-        properties: { height: height },
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[
-            [lng + offsetX - size, lat + offsetY - size],
-            [lng + offsetX + size, lat + offsetY - size],
-            [lng + offsetX + size, lat + offsetY + size],
-            [lng + offsetX - size, lat + offsetY + size],
-            [lng + offsetX - size, lat + offsetY - size]
-          ]]
-        }
-      });
+// --- INITIALISATION DU MOTEUR (Deck.gl + Google 3D + Mapbox) ---
+deckgl = new deck.DeckGL({
+  container: 'map',
+  mapStyle: 'mapbox://styles/mapbox/light-v11', // Carte très claire pour contraster avec la 3D
+  mapboxApiAccessToken: MAPBOX_TOKEN,
+  viewState: viewState,
+  onViewStateChange: ({viewState: v}) => {
+    viewState = v;
+    lng = v.longitude;
+    lat = v.latitude;
+    deckgl.setProps({viewState});
+  },
+  controller: true,
+  useDevicePixels: false, // Anti-Freeze absolu pour le mobile
+  
+  // LA COUCHE MAGIQUE : GOOGLE PHOTOREALISTIC 3D TILES
+  layers: [
+    new deck.Tile3DLayer({
+      id: 'google-3d-tiles',
+      data: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
+      shadowEnabled: true, // Projette des ombres
+      opacity: 1
+    })
+  ],
+  effects: [getLightingEffect(mins)], // Application du soleil
+  
+  // Quand le moteur est prêt, on charge ton interface
+  onLoad: async () => {
+    map = deckgl.getMapboxMap(); // Hook vers Mapbox pour tes pins
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
+    
+    startAnimLoop();
+    VENUES = await loadVenues();
+    addVenueMarkers();
+  },
+  
+  // On gère le clic pour la position de l'utilisateur
+  onClick: (info, event) => {
+    if (searchMarker) { searchMarker.remove(); searchMarker=null; }
+    if (document.getElementById('venueCard').classList.contains('visible')) return;
+    if (info.coordinate) {
+        lng = info.coordinate[0];
+        lat = info.coordinate[1];
+        showToast('📍 Location updated');
     }
-    return { type: 'FeatureCollection', features: features };
   }
+});
+
+// --- LISSAGE DE L'ANIMATION DU SOLEIL ---
+let targetMins = mins, renderedMins = mins, rafId = null;
+
+function animLoop() {
+  const diff = targetMins - renderedMins;
+  if (Math.abs(diff) > 0.05) {
+    renderedMins += diff * 0.25; // Lerp pour la fluidité
+    deckgl.setProps({ effects: [getLightingEffect(renderedMins)] });
+  } else {
+    renderedMins = targetMins;
+  }
+  rafId = requestAnimationFrame(animLoop);
+}
+
+function startAnimLoop() { if (rafId) return; rafId = requestAnimationFrame(animLoop); }
+
+function go() { 
+  updateStatus(); 
+  updateVenuePins(); 
+  targetMins = mins; 
+}
+
+
+// --- GESTION DE LA CAMÉRA (Remplacement de map.flyTo) ---
+function flyToLocation(targetLng, targetLat, zoomLevel = 16, offsetLat = 0) {
+  viewState = {
+    ...viewState,
+    longitude: targetLng,
+    latitude: targetLat + offsetLat, // Permet de décaler la vue si la carte est ouverte
+    zoom: zoomLevel,
+    transitionDuration: 1000,
+    transitionInterpolator: new deck.FlyToInterpolator()
+  };
+  deckgl.setProps({ viewState });
+}
+
+
+// --- UI DU SLIDER ---
+const track = document.getElementById('sliderTrack');
+const thumb = document.getElementById('sliderThumb');
+
+function updateSliderUI() {
+  const pct=mins/1439;
+  const trackH=track.offsetHeight, thumbH=thumb.offsetHeight;
+  thumb.style.top = ((1-pct)*(trackH-thumbH))+'px';
+  document.getElementById('timeTxt').textContent = String(~~(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
+  const d=new Date(); d.setHours(~~(mins/60),mins%60,0,0);
+  const alt=(SunCalc.getPosition(d,lat,lng).altitude * 180) / Math.PI;
+  document.getElementById('statusEmoji').textContent = alt<-6?'🌙':alt<=0?'🌅':alt<10?'🌤️':'☀️';
+}
+function pxToMins(y) { const r=track.getBoundingClientRect(); return Math.round(Math.max(0,Math.min(1,1-(y-r.top)/r.height))*1439); }
+
+track.addEventListener('mousedown',e=>{ dragging=true; mins=pxToMins(e.clientY); updateSliderUI(); go(); e.preventDefault(); });
+document.addEventListener('mousemove',e=>{ if(!dragging)return; mins=pxToMins(e.clientY); updateSliderUI(); go(); });
+document.addEventListener('mouseup',()=>{ dragging=false; });
+track.addEventListener('touchstart',e=>{ dragging=true; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); e.preventDefault(); },{ passive:false });
+document.addEventListener('touchmove',e=>{ if(!dragging)return; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); go(); },{ passive:false });
+document.addEventListener('touchend',()=>{ dragging=false; });
+
+function updateStatus() {
+  const d=new Date(); d.setHours(~~(mins/60),mins%60,0,0);
+  const alt=(SunCalc.getPosition(d,lat,lng).altitude * 180) / Math.PI;
+  document.getElementById('statusEmoji').textContent = alt<-6?'🌙':alt<=0?'🌅':alt<10?'🌤️':'☀️';
+  document.getElementById('timeTxt').textContent = String(~~(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
+}
+
+// --- BASE DE DONNÉES & VENUES ---
+async function loadVenues() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?active=eq.true&select=*`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    const data = await res.json();
+    return data.map(v => ({
+      id: v.id, name: v.name, type: v.type, emoji: v.emoji, lng: v.lng, lat: v.lat,
+      reserveUrl: v.reserve_url, directionsUrl: v.directions_url,
+      sunWindows: v.sun_windows, photoUrl: v.photo_url || null,
+    }));
+  } catch(e) { return []; }
+}
+
+let VENUES=[], currentVenue=null;
+const venueMarkers={};
+
+function venueInSun(v) { const h=mins/60; return v.sunWindows&&v.sunWindows.some(([s,e])=>h>=s&&h<e); }
+
+function getSunSlots(venue) {
+  const S=7,E=21,SP=E-S,nowH=mins/60;
+  return venue.sunWindows.map(([start,end])=>{
+    const fmt=h=>`${String(~~h).padStart(2,'0')}:${h%1===0.5?'30':'00'}`;
+    const left=Math.max(0,((start-S)/SP)*100);
+    const width=Math.min(((end-start)/SP)*100,100-left);
+    const nowPct=((nowH-S)/SP)*100;
+    return {startStr:fmt(start),endStr:fmt(end),left,width,nowPct,showNow:nowH>=S&&nowH<=E};
+  });
+}
+
+function makePin(venue, inSun) {
+  const el=document.createElement('div');
+  el.style.cssText=`width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;border:3px solid #fff;background:${inSun?'#FFB800':'#6b88b5'};box-shadow:0 2px 10px rgba(0,0,0,0.22);cursor:pointer;will-change:transform;transform:translateZ(0);-webkit-tap-highlight-color:transparent;transition:background 0.4s;${inSun?'animation:pinGlow 2.5s ease-in-out infinite;':''}`;
+  el.textContent=venue.emoji;
+  return el;
+}
+
+function addVenueMarkers() {
+  VENUES.forEach(venue=>{
+    const inSun=venueInSun(venue);
+    const el=makePin(venue,inSun);
+    const marker=new mapboxgl.Marker({element:el,anchor:'center'}).setLngLat([venue.lng,venue.lat]).addTo(map);
+    el.addEventListener('click',e=>{ e.stopPropagation(); openVenueCard(venue); });
+    venueMarkers[venue.id]={marker,el};
+  });
+}
+
+function updateVenuePins() {
+  VENUES.forEach(venue=>{
+    const v=venueMarkers[venue.id]; if(!v)return;
+    const inSun=venueInSun(venue);
+    v.el.style.background=inSun?'#FFB800':'#6b88b5';
+    v.el.style.animation=inSun?'pinGlow 2.5s ease-in-out infinite':'none';
+  });
+  if(currentVenue)updateVenueCard(currentVenue);
+}
+
+function closeVenueCard() {
+  const card=document.getElementById('venueCard');
+  card.style.transform=''; card.classList.remove('visible');
+  document.getElementById('cardBackdrop').classList.remove('visible');
+  currentVenue=null;
+  document.querySelector('.time-pill').style.opacity='1';
+  document.querySelector('.time-pill').style.pointerEvents='';
+}
+
+function openVenueCard(venue) {
+  currentVenue=venue; updateVenueCard(venue);
+  trackClick(venue.id,'card_view');
+  document.getElementById('venueCard').classList.add('visible');
+  document.getElementById('cardBackdrop').classList.add('visible');
+  document.querySelector('.time-pill').style.opacity='0';
+  document.querySelector('.time-pill').style.pointerEvents='none';
+  
+  // Utilisation de la nouvelle fonction flyTo compatible Deck.gl
+  // On décale légèrement le point vers le bas (-0.001) pour compenser la carte UI
+  flyToLocation(venue.lng, venue.lat, 16, -0.001);
+}
+
+function updateVenueCard(venue) {
+  const inSun=venueInSun(venue);
+  document.getElementById('vcName').textContent=venue.name;
+  document.getElementById('vcType').textContent=venue.type;
+  const card=document.getElementById('venueCard'), photo=document.getElementById('vcPhoto');
+  if(venue.photoUrl){photo.src=venue.photoUrl;photo.style.display='block';card.classList.add('has-photo');}
+  else{photo.src='';photo.style.display='none';card.classList.remove('has-photo');}
+  document.getElementById('vcDot').className='status-dot '+(inSun?'sun':'shade');
+  document.getElementById('vcStatus').className='venue-status-txt '+(inSun?'sun':'shade');
+  document.getElementById('vcStatus').textContent=inSun?'☀️ In the sun now':'🌑 In the shade now';
+  document.getElementById('vcSlots').innerHTML=getSunSlots(venue).map(s=>`
+    <div class="sun-slot">
+      <div class="slot-times"><span class="slot-time-label">☀️ ${s.startStr}</span><span class="slot-arrow">——</span><span class="slot-time-label">${s.endStr} ☀️</span></div>
+      <div class="slot-bar-wrap"><div class="slot-fill" style="left:${s.left}%;width:${s.width}%"></div>${s.showNow?`<div class="slot-now-line" style="left:${s.nowPct}%"></div>`:''}</div>
+      <div class="slot-day-labels"><span>7h</span><span>14h</span><span>21h</span></div>
+    </div>`).join('');
+  document.getElementById('vcDir').onclick=()=>{ if(venue.directionsUrl){trackClick(venue.id,'directions_click');window.open(venue.directionsUrl,'_blank');} };
+  document.getElementById('vcRes').onclick=()=>{ if(venue.reserveUrl){trackClick(venue.id,'reserve_click');window.open(venue.reserveUrl,'_blank');} };
+}
+
+document.getElementById('cardBackdrop').addEventListener('click',closeVenueCard);
+document.getElementById('cardBackdrop').addEventListener('touchend',e=>{ e.preventDefault(); closeVenueCard(); });
+
+(function(){
+  const card=document.getElementById('venueCard');
+  let startY=0,active=false,moved=0;
+  card.addEventListener('touchstart',e=>{ startY=e.touches[0].clientY; active=true; moved=0; card.style.transition='none'; },{passive:true});
+  card.addEventListener('touchmove',e=>{ if(!active)return; moved=e.touches[0].clientY-startY; if(moved>0)card.style.transform=`translateY(${moved}px)`; },{passive:true});
+  card.addEventListener('touchend',()=>{ if(!active)return; active=false; card.style.transition=''; if(moved>70)closeVenueCard(); else card.style.transform=''; },{passive:true});
+})();
+
+// --- RECHERCHE ET AUTOCOMPLÉTION ---
+let acTimeout, toastTmt, searchMarker=null;
+const si=document.getElementById('searchInput'), acList=document.getElementById('ac-list'), spn=document.getElementById('spinner'), sico=document.querySelector('.s-icon');
+
+si.addEventListener('focus',()=>{ document.querySelector('.time-pill').style.opacity='0'; document.querySelector('.time-pill').style.pointerEvents='none'; });
+si.addEventListener('blur',()=>{ setTimeout(()=>{ if(!currentVenue){document.querySelector('.time-pill').style.opacity='1'; document.querySelector('.time-pill').style.pointerEvents='';} },200); });
+si.addEventListener('input',()=>{ clearTimeout(acTimeout); const q=si.value.trim(); if(q.length<2){acList.style.display='none';return;} acTimeout=setTimeout(()=>fetchPlaces(q),300); });
+
+async function fetchPlaces(q) {
+  spn.style.display='block'; sico.style.display='none';
+  try {
+    const res=await fetch(`https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${MAPBOX_TOKEN}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${userLng||lng},${userLat||lat}`);
+    renderAC((await res.json()).suggestions||[]);
+  } catch { acList.style.display='none'; }
+  finally { spn.style.display='none'; sico.style.display='block'; }
+}
+
+function showSearchPin(lngLat) {
+  if (searchMarker) { searchMarker.remove(); searchMarker=null; }
+  const el=document.createElement('div');
+  el.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;animation:pinDrop 0.3s cubic-bezier(0.34,1.56,0.64,1)"><div style="background:#e74c3c;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center"><div style="width:10px;height:10px;background:#fff;border-radius:50%;transform:rotate(45deg)"></div></div></div>`;
+  searchMarker=new mapboxgl.Marker({element:el,anchor:'bottom'}).setLngLat(lngLat).addTo(map);
+}
+
+async function selectPlace(mapboxId, name) {
+  try {
+    const res=await fetch(`https://api.mapbox.com/search/searchbox/v1/retrieve/${mapboxId}?access_token=${MAPBOX_TOKEN}&session_token=litspot-session`);
+    const feat=(await res.json()).features?.[0]; if(!feat)return;
+    lng=feat.geometry.coordinates[0]; lat=feat.geometry.coordinates[1];
+    si.value=name; acList.style.display='none';
+    
+    flyToLocation(lng, lat, 17);
+    
+    setTimeout(()=>showSearchPin([lng,lat]),900);
+    go();
+  } catch {}
+}
+
+function renderAC(suggestions) {
+  if(!suggestions.length){acList.style.display='none';return;}
+  acList.innerHTML='';
+  suggestions.forEach(s=>{
+    const item=document.createElement('div'); item.className='ac-item';
+    const name=s.name||s.name_preferred||'', addr=s.place_formatted||s.full_address||'';
+    item.innerHTML=`<div class="ac-name">${name}</div><div class="ac-addr">${addr}</div>`;
+    item.addEventListener('click',()=>selectPlace(s.mapbox_id,name));
+    acList.appendChild(item);
+  });
+  acList.style.display='block';
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('.search-wrap'))acList.style.display='none'; });
+si.addEventListener('keydown',async e=>{ if(e.key!=='Enter')return; acList.style.display='none'; await fetchPlaces(si.value); const f=acList.querySelector('.ac-item'); if(f)f.click(); });
+
+document.getElementById('geoBtn').addEventListener('click',()=>{
+  if(!navigator.geolocation)return showToast('Not supported');
+  showToast('📡 Locating…');
+  navigator.geolocation.getCurrentPosition(p=>{ 
+    lat=p.coords.latitude; lng=p.coords.longitude; userLat=lat; userLng=lng; 
+    flyToLocation(lng, lat, 16);
+    go(); showToast('🎯 Location found!'); 
+  },()=>showToast('❌ Access denied'));
+});
+
+function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTmt); toastTmt=setTimeout(()=>t.classList.remove('show'),2600); }
+
+async function trackClick(venueId, clickType) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/venue_clicks`,{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({venue_id:venueId,click_type:clickType}),
+    });
+  } catch(e){}
+}
+
+setInterval(()=>{ const n=new Date(),lm=n.getHours()*60+n.getMinutes(); if(!dragging&&Math.abs(lm-mins)<=1){mins=lm;updateSliderUI();go();} },60000);
+
+// Demande la geolocalisation silencieusement au démarrage
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(p => { userLat=p.coords.latitude; userLng=p.coords.longitude; }, ()=>{});
+}
+
 </script>
 </body>
 </html>
