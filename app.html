@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LitSpot — Find Sunny Spots & Sun-Lit Terraces Near You</title>
 
+<!-- Polices -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 
+<!-- MAPBOX GL JS (Le socle natif, impossible à freezer) -->
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 
+<!-- SUNCALC (Pour la trajectoire du soleil) -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 
 <style>
@@ -46,7 +49,7 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 .slider-track { position: relative; width: 4px; height: 130px; background: rgba(255,240,220,0.14); border-radius: 2px; cursor: pointer; touch-action: none; }
 .slider-thumb { position: absolute; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: radial-gradient(circle at 38% 38%, #FFE07A, #E8890C); border-radius: 50%; box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5); }
 
-/* CARTE DU LIEU (VENUE CARD) */
+/* CARTE DU LIEU */
 .venue-card { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #FFFFFF; border: 1px solid rgba(0,0,0,0.06); border-radius: 24px 24px 0 0; overflow: hidden; box-shadow: 0 -8px 32px rgba(0,0,0,0.18); transform: translateY(100%); transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1); pointer-events: none; padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
 .venue-card.visible { transform: translateY(0); pointer-events: all; }
 .card-handle { width: 36px; height: 4px; background: rgba(0,0,0,0.12); border-radius: 2px; margin: 12px auto 0; }
@@ -83,6 +86,7 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 .venue-card-close { position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 50%; background: rgba(28,20,16,0.12); border: none; font-size: 16px; font-weight: 700; cursor: pointer; z-index: 2000; }
 #cardBackdrop { display: none; position: fixed; inset: 0; z-index: 999; background: transparent; }
 #cardBackdrop.visible { display: block; }
+
 #toast { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 20px); left: 50%; transform: translateX(-50%) translateY(8px); background: rgba(28,20,16,0.95); border-radius: 12px; padding: 10px 20px; font-size: 14px; color: #FFF5E6; z-index: 1500; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; white-space: nowrap; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
@@ -139,21 +143,19 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 <div id="toast"></div>
 
 <script>
-// --- CLÉS D'API ---
 mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
 const SUPABASE_URL = 'https://dogontqbkihwircaldie.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ29udHFia2lod2lyY2FsZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTI3ODYsImV4cCI6MjA5Mjg2ODc4Nn0.5tvkp_zIEMZS8TM1PIYBuEJyBRIIvaTPzU3j9OTbMAA';
 
-// --- ÉTAT GLOBAL ---
-let lat = 45.5088, lng = -73.5878; // Centre ville Montréal
+let lat = 45.5088, lng = -73.5878; 
 let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
+let targetMins = mins;
 let dragging = false;
 
-// --- 1. INITIALISATION DE LA CARTE MAPBOX ---
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/light-v11', // Style clair, parfait pour voir les blocs 3D
+  style: 'mapbox://styles/mapbox/light-v11', 
   center: [lng, lat],
   zoom: 16.5,
   pitch: 60,
@@ -163,21 +165,14 @@ const map = new mapboxgl.Map({
 
 map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
 
-// --- 2. LE MOTEUR D'OMBRES LÉGER (Anti-Freeze) ---
+// --- LE CACHE DES BÂTIMENTS (Pour la rapidité) ---
 let buildingCache = [];
-let lastShadowTime = 0;
-
-// On scanne les bâtiments uniquement quand la caméra s'arrête de bouger
 function updateBuildingCache() {
-  if (map.getZoom() < 14.5) {
-      buildingCache = []; // On vide la mémoire si on dézoome trop
-      return;
-  }
-  
+  if (map.getZoom() < 14) return;
   if (!map.getLayer('3d-buildings')) return;
+  
   try {
-    // On limite à 500 bâtiments maximum pour ne JAMAIS faire lagger le téléphone
-    const features = map.queryRenderedFeatures({ layers: ['3d-buildings'] }).slice(0, 500);
+    const features = map.queryRenderedFeatures({ layers: ['3d-buildings'] });
     const seen = new Set();
     buildingCache = [];
     
@@ -204,7 +199,7 @@ function updateBuildingCache() {
 map.on('moveend', updateBuildingCache);
 map.on('idle', updateBuildingCache);
 
-// Le calcul mathématique ultra-rapide
+// --- LE MOTEUR D'OMBRES GÉOMÉTRIQUE RÉPARÉ ---
 function computeAndDrawShadows() {
   const src = map.getSource('shadows');
   if (!src || !map.isStyleLoaded()) return;
@@ -215,7 +210,6 @@ function computeAndDrawShadows() {
   const alt = pos.altitude;
   const az  = pos.azimuth; 
 
-  // S'il fait nuit, on coupe les ombres
   if (alt <= 0.015 || buildingCache.length === 0) {
     src.setData({ type:'FeatureCollection', features:[] });
     return;
@@ -223,27 +217,28 @@ function computeAndDrawShadows() {
 
   const shadowFactor = Math.min(1 / Math.tan(alt), 15);
   const latRad = lat * Math.PI / 180;
-  const mPerDegLat = 111320;
-  const mPerDegLng = 111320 * Math.cos(latRad);
+  
+  // Correction de la direction (L'ombre fuit le soleil de manière opposée)
+  const shadowAngle = az + Math.PI; 
+  const dLng = (shadowFactor * Math.sin(shadowAngle)) / (111320 * Math.cos(latRad));
+  const dLat = (shadowFactor * Math.cos(shadowAngle)) / 111320;
 
-  const sinAz = Math.sin(az);
-  const cosAz = Math.cos(az);
   const features = [];
 
   for (const b of buildingCache) {
     const ring = b.ring;
-    const shadowLen = b.h * shadowFactor;
-    const dLng = (shadowLen * sinAz) / mPerDegLng;
-    const dLat = (shadowLen * cosAz) / mPerDegLat;
+    const shiftX = b.h * dLng;
+    const shiftY = b.h * dLat;
 
-    // Décalage géométrique ultra-rapide
-    const offsetRing = ring.map(pt => [pt[0] + dLng, pt[1] + dLat]);
+    const offsetRing = ring.map(pt => [pt[0] + shiftX, pt[1] + shiftY]);
 
+    // 1. Tête de l'ombre
     features.push({
       type: 'Feature',
       geometry: { type: 'Polygon', coordinates: [offsetRing] }
     });
 
+    // 2. Corps de l'ombre
     for (let i = 0; i < ring.length - 1; i++) {
       features.push({
         type: 'Feature',
@@ -291,10 +286,9 @@ function updateLighting() {
 }
 
 
-// --- 3. CHARGEMENT DE LA CARTE 3D (Les blocs) ---
+// --- CHARGEMENT DES COUCHES ---
 map.on('style.load', async () => {
 
-  // Trouve la couche de texte pour mettre la 3D en dessous
   const layers = map.getStyle().layers;
   let labelLayerId;
   for (const layer of layers) {
@@ -304,21 +298,30 @@ map.on('style.load', async () => {
     }
   }
 
-  // 1. Ajout de la couche des ombres projetées
+  // LA CORRECTION DU "MÉLANGE DE FORMES" : 
+  // On utilise un `fill-extrusion` à hauteur 0. 
+  // Mapbox fusionne automatiquement tout ce qui est dedans pour faire une forme propre.
   map.addSource('shadows', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
   map.addLayer({
-    id: 'shadows-layer', type: 'fill', source: 'shadows',
-    paint: { 'fill-color':'#0f172a', 'fill-opacity':0.35, 'fill-antialias':true }
+    id: 'shadows-layer', 
+    type: 'fill-extrusion', 
+    source: 'shadows',
+    paint: { 
+        'fill-extrusion-color': '#0f172a', 
+        'fill-extrusion-height': 0.01,
+        'fill-extrusion-base': 0,
+        'fill-extrusion-opacity': 0.35 // L'opacité s'applique sur le tout, pas sur chaque triangle !
+    }
   }, labelLayerId);
 
-  // 2. Ajout des blocs de bâtiments 3D natifs
+  // Les bâtiments Mapbox (Comme sur ton screenshot Google)
   map.addLayer({
     id: '3d-buildings',
     source: 'composite',
     'source-layer': 'building',
     filter: ['all', ['==', 'extrude', 'true'], ['has', 'height']],
     type: 'fill-extrusion',
-    minzoom: 14.5,
+    minzoom: 14,
     paint: {
       'fill-extrusion-color': '#e8e4dc',
       'fill-extrusion-height': ['get', 'height'],
@@ -327,32 +330,31 @@ map.on('style.load', async () => {
     }
   }, labelLayerId);
 
-  // 3. Lancement des moteurs
   updateSliderUI();
   updateLighting();
   
-  // Téléchargement des terrasses
+  // Chargement des Terrasses Supabase
   VENUES = await loadVenues();
   addVenueMarkers();
   
   setTimeout(() => {
     updateBuildingCache();
-    computeAndDrawShadows(true);
+    computeAndDrawShadows();
   }, 1000);
 });
 
 
-// --- LISSAGE DE L'ANIMATION LORS DU GLISSEMENT ---
-let targetMins = mins;
+// --- ANIMATION FLUIDE DU SLIDER ---
+let lastShadowTime = 0;
 
 function animLoop() {
   if (Math.abs(targetMins - mins) > 0.5) {
     mins += (targetMins - mins) * 0.2;
     if (map.isStyleLoaded()) {
       updateLighting();
-      // On calcule les ombres que toutes les 50ms pour garder 60FPS
+      // On calcule les ombres que toutes les 40ms pour garder un téléphone fluide
       const now = performance.now();
-      if (now - lastShadowTime > 50) {
+      if (now - lastShadowTime > 40) {
         computeAndDrawShadows();
         lastShadowTime = now;
       }
@@ -361,13 +363,13 @@ function animLoop() {
     mins = targetMins;
     if (map.isStyleLoaded()) {
       updateLighting();
-      computeAndDrawShadows(true); 
+      computeAndDrawShadows(); 
     }
   }
   requestAnimationFrame(animLoop);
 }
 
-requestAnimationFrame(animLoop); // Démarrage immédiat
+requestAnimationFrame(animLoop);
 
 // --- UI DU SLIDER ---
 const track = document.getElementById('sliderTrack');
@@ -393,7 +395,6 @@ document.addEventListener('mouseup',()=>{ dragging=false; });
 track.addEventListener('touchstart',e=>{ dragging=true; targetMins=pxToMins(e.touches[0].clientY); updateSliderUI(); updateVenuePins(); e.preventDefault(); },{ passive:false });
 document.addEventListener('touchmove',e=>{ if(!dragging)return; targetMins=pxToMins(e.touches[0].clientY); updateSliderUI(); updateVenuePins(); },{ passive:false });
 document.addEventListener('touchend',()=>{ dragging=false; });
-
 
 // --- BASE DE DONNÉES & PINS (Supabase) ---
 async function loadVenues() {
@@ -504,7 +505,7 @@ document.getElementById('cardBackdrop').addEventListener('touchend',e=>{ e.preve
   card.addEventListener('touchend',()=>{ if(!active)return; active=false; card.style.transition=''; if(moved>70)closeVenueCard(); else card.style.transform=''; },{passive:true});
 })();
 
-// --- RECHERCHE ET AUTOCOMPLÉTION (MAPBOX API) ---
+// --- RECHERCHE ET AUTOCOMPLÉTION ---
 let acTimeout, toastTmt, searchMarker=null;
 const si=document.getElementById('searchInput'), acList=document.getElementById('ac-list'), spn=document.getElementById('spinner'), sico=document.querySelector('.s-icon');
 
