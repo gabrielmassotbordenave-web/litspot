@@ -9,16 +9,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 
-<!-- 1. MapLibre GL JS (La carte 2D de base) -->
-<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+<!-- 1. MAPBOX GL JS (La carte 2D de base) -->
+<script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
+<link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 
-<!-- 2. Deck.gl & Loaders (Pour la 3D Google et le Shadow Mapping) -->
+<!-- 2. DECK.GL (Le moteur 3D GPU) -->
 <script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
+
+<!-- 3. LOADERS.GL (Indispensable pour lire le format 3D Tiles de Google) -->
 <script src="https://unpkg.com/@loaders.gl/core@3.4.4/dist/dist.min.js"></script>
 <script src="https://unpkg.com/@loaders.gl/3d-tiles@3.4.4/dist/dist.min.js"></script>
 
-<!-- 3. SunCalc (Le Moteur Astronomique) -->
+<!-- 4. SUNCALC (L'algorithme astronomique) -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 
 <style>
@@ -26,10 +28,11 @@
 html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; background: #e2e8f0;}
 #map { position: absolute; inset: 0; }
 
-.maplibregl-ctrl-group { background: rgba(255,255,255,0.92) !important; border: 1px solid rgba(0,0,0,0.08) !important; }
-.maplibregl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom) + 16px) !important; right: 12px !important; }
+.mapboxgl-ctrl-group { background: rgba(255,255,255,0.92) !important; border: 1px solid rgba(0,0,0,0.08) !important; }
+.mapboxgl-ctrl-attrib { font-size: 9px !important; display: none !important;} /* Caché pour plus de propreté sur mobile */
+.mapboxgl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom) + 16px) !important; right: 12px !important; }
 
-/* SEARCH */
+/* RECHERCHE */
 .top-bar { position: absolute; top: calc(env(safe-area-inset-top) + 12px); left: 12px; right: 12px; z-index: 100; display: flex; gap: 10px; align-items: center; }
 .search-wrap { position: relative; flex: 1; }
 #searchInput { width: 100%; background: rgba(255,255,255,0.97); border: 1.5px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 14px 44px 14px 16px; font-family: 'Outfit', sans-serif; font-size: 16px; color: #1a1a2e; outline: none; box-shadow: 0 4px 20px rgba(0,0,0,0.12); -webkit-appearance: none; }
@@ -46,14 +49,14 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 .ac-addr { font-size: 12px; color: rgba(0,0,0,0.35); margin-top: 3px; }
 .geo-btn { width: 52px; height: 52px; border-radius: 14px; flex-shrink: 0; background: rgba(255,255,255,0.97); border: 1.5px solid rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
 
-/* TIME PILL */
+/* SLIDER TEMPOREL */
 .time-pill { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); z-index: 100; background: rgba(28,20,16,0.92); border: 1px solid rgba(255,240,220,0.14); border-radius: 22px; padding: 14px 0; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); width: 56px; transition: opacity 0.3s ease; }
 .pill-time { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 600; color: #FFF5E6; letter-spacing: -0.5px; line-height: 1; text-align: center; white-space: nowrap; width: 100%; }
 .pill-status { font-size: 18px; line-height: 1; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .slider-track { position: relative; width: 4px; height: 130px; background: rgba(255,240,220,0.14); border-radius: 2px; cursor: pointer; touch-action: none; }
 .slider-thumb { position: absolute; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: radial-gradient(circle at 38% 38%, #FFE07A, #E8890C); border-radius: 50%; box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5); }
 
-/* VENUE CARD */
+/* CARTE DU LIEU */
 .venue-card { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #FFFFFF; border: 1px solid rgba(0,0,0,0.06); border-radius: 24px 24px 0 0; overflow: hidden; box-shadow: 0 -8px 32px rgba(0,0,0,0.18); transform: translateY(100%); transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1); pointer-events: none; padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
 .venue-card.visible { transform: translateY(0); pointer-events: all; }
 .card-handle { width: 36px; height: 4px; background: rgba(0,0,0,0.12); border-radius: 2px; margin: 12px auto 0; }
@@ -90,17 +93,34 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 .venue-card-close { position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 50%; background: rgba(28,20,16,0.12); border: none; font-size: 16px; font-weight: 700; cursor: pointer; z-index: 2000; }
 #cardBackdrop { display: none; position: fixed; inset: 0; z-index: 999; background: transparent; }
 #cardBackdrop.visible { display: block; }
+
+/* TOAST CLASSIQUE */
 #toast { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 20px); left: 50%; transform: translateX(-50%) translateY(8px); background: rgba(28,20,16,0.95); border-radius: 12px; padding: 10px 20px; font-size: 14px; color: #FFF5E6; z-index: 1500; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; white-space: nowrap; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* TOAST D'ERREUR ROUGE (Le filet de sécurité) */
+#errorToast { display:none; position:fixed; top:calc(env(safe-area-inset-top) + 80px); left:50%; transform:translateX(-50%); background:#e74c3c; color:#fff; padding:12px 20px; border-radius:12px; z-index:9999; font-weight:500; text-align:center; box-shadow:0 10px 25px rgba(231,76,60,0.4); max-width:90%; }
 </style>
 </head>
 <body>
 
-<!-- Le conteneur de la carte -->
+<!-- FILET DE SÉCURITÉ : Capture les crashs JS et les affiche -->
+<div id="errorToast"></div>
+<script>
+window.addEventListener('error', function(e) {
+    const errDiv = document.getElementById('errorToast');
+    if(errDiv) {
+        errDiv.style.display = 'block';
+        errDiv.textContent = 'Erreur bloquante : ' + e.message;
+        setTimeout(() => errDiv.style.display='none', 8000);
+    }
+});
+</script>
+
 <div id="map"></div>
 <div id="cardBackdrop"></div>
 
-<!-- Search -->
+<!-- Barre de Recherche -->
 <div class="top-bar">
   <div class="search-wrap">
     <input id="searchInput" type="text" placeholder="Bar, restaurant, address…" autocomplete="off" spellcheck="false">
@@ -111,7 +131,7 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
   <button class="geo-btn" id="geoBtn">🎯</button>
 </div>
 
-<!-- Time pill -->
+<!-- Le Slider -->
 <div class="time-pill">
   <div class="pill-time" id="timeTxt">12:00</div>
   <div class="pill-status" id="statusEmoji">☀️</div>
@@ -120,7 +140,7 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
   </div>
 </div>
 
-<!-- Venue card -->
+<!-- Carte du Lieu -->
 <div class="venue-card" id="venueCard">
   <div class="card-handle"></div>
   <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
@@ -157,26 +177,27 @@ const SUPABASE_URL = 'https://dogontqbkihwircaldie.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ29udHFia2lod2lyY2FsZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTI3ODYsImV4cCI6MjA5Mjg2ODc4Nn0.5tvkp_zIEMZS8TM1PIYBuEJyBRIIvaTPzU3j9OTbMAA';
 
 // --- ÉTAT GLOBAL ---
-let lat = 45.5088, lng = -73.5878;
+let lat = 45.5088, lng = -73.5878; // Montréal
 let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
 let dragging = false;
 let deckOverlay;
 
-// --- 1. INITIALISATION DE LA CARTE 2D (MAPLIBRE) ---
-const map = new maplibregl.Map({
+// --- 1. INITIALISATION CARTE MAPBOX ---
+mapboxgl.accessToken = MAPBOX_TOKEN;
+const map = new mapboxgl.Map({
   container: 'map',
-  style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+  style: 'mapbox://styles/mapbox/light-v11', // Fond de carte ultra léger et clair
   center: [lng, lat],
   zoom: 16.5,
-  pitch: 60,
+  pitch: 60, // Angle pour bien voir la 3D
   bearing: -20,
   antialias: true
 });
 
-map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
+map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
 
-// --- 2. LE MOTEUR D'OMBRES (DECK.GL LIGHTING EFFECT) ---
+// --- 2. LE MOTEUR D'OMBRES (GPU) ---
 function getLightingEffect(m) {
   const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
   const pos = SunCalc.getPosition(d, lat, lng);
@@ -184,75 +205,96 @@ function getLightingEffect(m) {
 
   const ambientLight = new deck.AmbientLight({
     color: [255, 255, 255],
-    intensity: alt > 0 ? 0.6 : 0.2
+    intensity: alt > 0 ? 0.8 : 0.2
   });
 
   const directionalLight = new deck.SunLight({
     timestamp: d.getTime(),
     color: [255, 248, 240],
     intensity: alt > 0 ? 3.0 : 0.0,
-    _shadow: true // LE GPU CALCULE LES OMBRES
+    _shadow: true // DÉCLENCHE LE SHADOW MAPPING GPU DE DECK.GL
   });
 
   return new deck.LightingEffect({ ambientLight, directionalLight });
 }
 
-// --- 3. L'INSERTION DE LA 3D GOOGLE (Asynchrone et Non-Bloquant) ---
-map.on('load', () => {
-  // 3.1 On crée et on ajoute l'overlay 3D IMMÉDIATEMENT
-  deckOverlay = new deck.MapboxOverlay({
-    interleaved: true, // Pour garder les textes de rue visibles
-    effects: [getLightingEffect(mins)],
-    layers: [
-      new deck.Tile3DLayer({
-        id: 'google-3d',
-        data: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
-        loadOptions: { '3d-tiles': { isGoogleTileset: true } },
-        shadowEnabled: true // Active les ombres sur la 3D
-      })
-    ]
-  });
+// --- 3. L'INJECTION DE LA 3D AU CHARGEMENT DE LA CARTE ---
+map.on('style.load', () => {
+  try {
+    // Création du calque 3D Deck.gl par dessus Mapbox
+    deckOverlay = new deck.MapboxOverlay({
+      interleaved: true, // Se fond avec la carte pour ne pas cacher les noms de rue
+      effects: [], // Sera mis à jour tout de suite après
+      layers: [
+        new deck.Tile3DLayer({
+          id: 'google-3d-tiles',
+          data: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
+          // On passe explicitement le loader pour éviter le crash "loader manquant"
+          loader: window.loaders ? window.loaders.Tiles3DLoader : undefined,
+          loadOptions: {
+            '3d-tiles': { isGoogleTileset: true }
+          },
+          shadowEnabled: true // Active les ombres sur les bâtiments Google
+        })
+      ]
+    });
 
-  map.addControl(deckOverlay);
+    map.addControl(deckOverlay);
+    
+    // Initialise la lumière avec l'heure actuelle
+    updateLighting(mins);
+    updateSliderUI();
 
-  // 3.2 On démarre l'UI et la boucle d'animation IMMÉDIATEMENT
-  updateSliderUI();
-  requestAnimationFrame(animLoop);
+    // Démarrage de la boucle d'animation du soleil (slider)
+    requestAnimationFrame(animLoop);
 
-  // 3.3 On charge les bases de données EN ARRIÈRE-PLAN
-  // Si Supabase est lent ou plante, ça ne bloquera PAS la carte et le slider !
-  loadVenues()
-    .then(data => {
+    // Téléchargement asynchrone des terrasses (ne bloque pas la carte)
+    loadVenues().then(data => {
       VENUES = data;
       addVenueMarkers();
-    })
-    .catch(err => {
-      console.error("Impossible de charger les terrasses:", err);
-      showToast("Erreur de connexion aux terrasses");
+    }).catch(err => {
+      console.error("Erreur téléchargement Venues:", err);
     });
+
+  } catch (error) {
+    console.error("Échec de l'initialisation de Deck.gl :", error);
+    document.getElementById('errorToast').style.display = 'block';
+    document.getElementById('errorToast').textContent = "Erreur 3D: " + error.message;
+  }
 });
 
 
-// --- LISSAGE DE L'ANIMATION LORS DU GLISSEMENT ---
+// --- LISSAGE DE L'ANIMATION DU SLIDER ---
 let targetMins = mins;
 let renderedMins = mins;
 
+function updateLighting(minutes) {
+  if (deckOverlay) {
+    deckOverlay.setProps({
+      effects: [getLightingEffect(minutes)]
+    });
+  }
+}
+
 function animLoop() {
-  if (Math.abs(targetMins - renderedMins) > 0.5) {
-    renderedMins += (targetMins - renderedMins) * 0.2;
-    if (deckOverlay) {
-      deckOverlay.setProps({
-        effects: [getLightingEffect(renderedMins)]
-      });
-    }
-  } else {
+  const diff = targetMins - renderedMins;
+  if (Math.abs(diff) > 0.5) {
+    renderedMins += diff * 0.2; // Interpolation pour un mouvement fluide
+    updateLighting(renderedMins);
+  } else if (targetMins !== renderedMins) {
     renderedMins = targetMins;
+    updateLighting(renderedMins); // Arrêt précis
   }
   requestAnimationFrame(animLoop);
 }
 
-function updateLighting(minutes) {
-  targetMins = minutes;
+// --- DÉPLACEMENT FLUIDE DE LA CAMÉRA (Natif Mapbox) ---
+function flyToLocation(targetLng, targetLat, zoomLevel = 17) {
+  map.flyTo({ 
+    center: [targetLng, targetLat - 0.001], // On décale un peu pour la carte du bas
+    zoom: zoomLevel, 
+    speed: 1.2 
+  });
 }
 
 // --- UI DU SLIDER ---
@@ -273,20 +315,20 @@ function updateSliderUI() {
 }
 function pxToMins(y) { const r=track.getBoundingClientRect(); return Math.round(Math.max(0,Math.min(1,1-(y-r.top)/r.height))*1439); }
 
-track.addEventListener('mousedown',e=>{ dragging=true; mins=pxToMins(e.clientY); updateSliderUI(); updateLighting(mins); updateVenuePins(); e.preventDefault(); });
-document.addEventListener('mousemove',e=>{ if(!dragging)return; mins=pxToMins(e.clientY); updateSliderUI(); updateLighting(mins); updateVenuePins(); });
+track.addEventListener('mousedown',e=>{ dragging=true; mins=pxToMins(e.clientY); targetMins=mins; updateSliderUI(); updateVenuePins(); e.preventDefault(); });
+document.addEventListener('mousemove',e=>{ if(!dragging)return; mins=pxToMins(e.clientY); targetMins=mins; updateSliderUI(); updateVenuePins(); });
 document.addEventListener('mouseup',()=>{ dragging=false; });
-track.addEventListener('touchstart',e=>{ dragging=true; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); updateLighting(mins); updateVenuePins(); e.preventDefault(); },{ passive:false });
-document.addEventListener('touchmove',e=>{ if(!dragging)return; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); updateLighting(mins); updateVenuePins(); },{ passive:false });
+track.addEventListener('touchstart',e=>{ dragging=true; mins=pxToMins(e.touches[0].clientY); targetMins=mins; updateSliderUI(); updateVenuePins(); e.preventDefault(); },{ passive:false });
+document.addEventListener('touchmove',e=>{ if(!dragging)return; mins=pxToMins(e.touches[0].clientY); targetMins=mins; updateSliderUI(); updateVenuePins(); },{ passive:false });
 document.addEventListener('touchend',()=>{ dragging=false; });
 
 
-// --- BASE DE DONNÉES & VENUES ---
+// --- BASE DE DONNÉES & PINS (Supabase) ---
 async function loadVenues() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?active=eq.true&select=*`, {
     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
   });
-  if (!res.ok) throw new Error("Erreur réseau Supabase");
+  if (!res.ok) throw new Error("Échec réseau API Supabase");
   const data = await res.json();
   return data.map(v => ({
     id: v.id, name: v.name, type: v.type, emoji: v.emoji, lng: v.lng, lat: v.lat,
@@ -322,8 +364,8 @@ function addVenueMarkers() {
   VENUES.forEach(venue=>{
     const inSun=venueInSun(venue);
     const el=makePin(venue,inSun);
-    // On ajoute directement à l'instance maplibre "map"
-    const marker=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([venue.lng,venue.lat]).addTo(map);
+    // Le Pin est ajouté directement à la carte Mapbox (Il ne peut pas être caché par erreur)
+    const marker=new mapboxgl.Marker({element:el,anchor:'center'}).setLngLat([venue.lng,venue.lat]).addTo(map);
     el.addEventListener('click',e=>{ e.stopPropagation(); openVenueCard(venue); });
     venueMarkers[venue.id]={marker,el};
   });
@@ -356,7 +398,7 @@ function openVenueCard(venue) {
   document.querySelector('.time-pill').style.opacity='0';
   document.querySelector('.time-pill').style.pointerEvents='none';
   
-  map.flyTo({center:[venue.lng,venue.lat], zoom:17, offset:[0,-120]});
+  flyToLocation(venue.lng, venue.lat, 17);
 }
 
 function updateVenueCard(venue) {
@@ -390,7 +432,7 @@ document.getElementById('cardBackdrop').addEventListener('touchend',e=>{ e.preve
   card.addEventListener('touchend',()=>{ if(!active)return; active=false; card.style.transition=''; if(moved>70)closeVenueCard(); else card.style.transform=''; },{passive:true});
 })();
 
-// --- RECHERCHE ET AUTOCOMPLÉTION (MAPBOX API) ---
+// --- RECHERCHE ET AUTOCOMPLÉTION ---
 let acTimeout, toastTmt, searchMarker=null;
 const si=document.getElementById('searchInput'), acList=document.getElementById('ac-list'), spn=document.getElementById('spinner'), sico=document.querySelector('.s-icon');
 
@@ -411,7 +453,7 @@ function showSearchPin(lngLat) {
   if (searchMarker) { searchMarker.remove(); searchMarker=null; }
   const el=document.createElement('div');
   el.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;animation:pinDrop 0.3s cubic-bezier(0.34,1.56,0.64,1)"><div style="background:#e74c3c;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center"><div style="width:10px;height:10px;background:#fff;border-radius:50%;transform:rotate(45deg)"></div></div></div>`;
-  searchMarker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(lngLat).addTo(map);
+  searchMarker=new mapboxgl.Marker({element:el,anchor:'bottom'}).setLngLat(lngLat).addTo(map);
 }
 
 async function selectPlace(mapboxId, name) {
@@ -421,7 +463,7 @@ async function selectPlace(mapboxId, name) {
     lng=feat.geometry.coordinates[0]; lat=feat.geometry.coordinates[1];
     si.value=name; acList.style.display='none';
     
-    map.flyTo({center:[lng,lat], zoom:17});
+    flyToLocation(lng, lat, 17);
     setTimeout(()=>showSearchPin([lng,lat]),900);
   } catch {}
 }
@@ -446,7 +488,7 @@ document.getElementById('geoBtn').addEventListener('click',()=>{
   showToast('📡 Locating…');
   navigator.geolocation.getCurrentPosition(p=>{ 
     lat=p.coords.latitude; lng=p.coords.longitude; userLat=lat; userLng=lng; 
-    map.flyTo({center:[lng,lat], zoom:16});
+    flyToLocation(lng, lat, 16);
     showToast('🎯 Location found!'); 
   },()=>showToast('❌ Access denied'));
 });
@@ -463,7 +505,7 @@ async function trackClick(venueId, clickType) {
   } catch(e){}
 }
 
-setInterval(()=>{ const n=new Date(),lm=n.getHours()*60+n.getMinutes(); if(!dragging&&Math.abs(lm-mins)<=1){mins=lm;updateSliderUI();updateLighting(mins);updateVenuePins();} },60000);
+setInterval(()=>{ const n=new Date(),lm=n.getHours()*60+n.getMinutes(); if(!dragging&&Math.abs(lm-mins)<=1){mins=lm; targetMins=mins; updateSliderUI();updateVenuePins();} },60000);
 
 if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(p => { userLat=p.coords.latitude; userLng=p.coords.longitude; }, ()=>{});
