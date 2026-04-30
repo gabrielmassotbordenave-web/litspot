@@ -5,22 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LitSpot — Find Sunny Spots & Sun-Lit Terraces Near You</title>
 
-<!-- Polices -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 
-<!-- 1. MAPBOX GL JS (La carte 2D de base) -->
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 
-<!-- 2. DECK.GL (Le moteur 3D GPU) -->
 <script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
 
-<!-- 3. LOADERS.GL (Indispensable pour lire le format 3D Tiles de Google) -->
 <script src="https://unpkg.com/@loaders.gl/core@3.4.4/dist/dist.min.js"></script>
 <script src="https://unpkg.com/@loaders.gl/3d-tiles@3.4.4/dist/dist.min.js"></script>
 
-<!-- 4. SUNCALC (L'algorithme astronomique) -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 
 <style>
@@ -29,7 +24,7 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 #map { position: absolute; inset: 0; }
 
 .mapboxgl-ctrl-group { background: rgba(255,255,255,0.92) !important; border: 1px solid rgba(0,0,0,0.08) !important; }
-.mapboxgl-ctrl-attrib { font-size: 9px !important; display: none !important;} /* Caché pour plus de propreté sur mobile */
+.mapboxgl-ctrl-attrib { font-size: 9px !important; display: none !important;} 
 .mapboxgl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom) + 16px) !important; right: 12px !important; }
 
 /* RECHERCHE */
@@ -98,20 +93,19 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 #toast { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 20px); left: 50%; transform: translateX(-50%) translateY(8px); background: rgba(28,20,16,0.95); border-radius: 12px; padding: 10px 20px; font-size: 14px; color: #FFF5E6; z-index: 1500; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; white-space: nowrap; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* TOAST D'ERREUR ROUGE (Le filet de sécurité) */
+/* TOAST D'ERREUR ROUGE */
 #errorToast { display:none; position:fixed; top:calc(env(safe-area-inset-top) + 80px); left:50%; transform:translateX(-50%); background:#e74c3c; color:#fff; padding:12px 20px; border-radius:12px; z-index:9999; font-weight:500; text-align:center; box-shadow:0 10px 25px rgba(231,76,60,0.4); max-width:90%; }
 </style>
 </head>
 <body>
 
-<!-- FILET DE SÉCURITÉ : Capture les crashs JS et les affiche -->
 <div id="errorToast"></div>
 <script>
 window.addEventListener('error', function(e) {
     const errDiv = document.getElementById('errorToast');
     if(errDiv) {
         errDiv.style.display = 'block';
-        errDiv.textContent = 'Erreur bloquante : ' + e.message;
+        errDiv.textContent = 'Erreur: ' + e.message;
         setTimeout(() => errDiv.style.display='none', 8000);
     }
 });
@@ -120,7 +114,6 @@ window.addEventListener('error', function(e) {
 <div id="map"></div>
 <div id="cardBackdrop"></div>
 
-<!-- Barre de Recherche -->
 <div class="top-bar">
   <div class="search-wrap">
     <input id="searchInput" type="text" placeholder="Bar, restaurant, address…" autocomplete="off" spellcheck="false">
@@ -131,7 +124,6 @@ window.addEventListener('error', function(e) {
   <button class="geo-btn" id="geoBtn">🎯</button>
 </div>
 
-<!-- Le Slider -->
 <div class="time-pill">
   <div class="pill-time" id="timeTxt">12:00</div>
   <div class="pill-status" id="statusEmoji">☀️</div>
@@ -140,7 +132,6 @@ window.addEventListener('error', function(e) {
   </div>
 </div>
 
-<!-- Carte du Lieu -->
 <div class="venue-card" id="venueCard">
   <div class="card-handle"></div>
   <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
@@ -187,32 +178,41 @@ let deckOverlay;
 mapboxgl.accessToken = MAPBOX_TOKEN;
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/light-v11', // Fond de carte ultra léger et clair
+  style: 'mapbox://styles/mapbox/light-v11', // Fond clair
   center: [lng, lat],
   zoom: 16.5,
-  pitch: 60, // Angle pour bien voir la 3D
+  pitch: 60,
   bearing: -20,
   antialias: true
 });
 
 map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
 
-// --- 2. LE MOTEUR D'OMBRES (GPU) ---
+// --- 2. LE MOTEUR D'OMBRES (API 100% STABLE : DirectionalLight) ---
 function getLightingEffect(m) {
   const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
+  
+  // Moteur astronomique
   const pos = SunCalc.getPosition(d, lat, lng);
-  const alt = (pos.altitude * 180) / Math.PI;
+  const azimuth = pos.azimuth;
+  const altitude = pos.altitude;
 
+  // Lumière d'ambiance
   const ambientLight = new deck.AmbientLight({
     color: [255, 255, 255],
-    intensity: alt > 0 ? 0.8 : 0.2
+    intensity: altitude > 0 ? 0.8 : 0.2
   });
 
-  const directionalLight = new deck.SunLight({
-    timestamp: d.getTime(),
+  // Calcul du vecteur 3D pour la lumière (Remplace la méthode "SunLight" expérimentale)
+  const dirX = Math.sin(azimuth) * Math.cos(altitude);
+  const dirY = Math.cos(azimuth) * Math.cos(altitude);
+  const dirZ = -Math.sin(altitude);
+
+  const directionalLight = new deck.DirectionalLight({
     color: [255, 248, 240],
-    intensity: alt > 0 ? 3.0 : 0.0,
-    _shadow: true // DÉCLENCHE LE SHADOW MAPPING GPU DE DECK.GL
+    intensity: altitude > 0 ? 3.0 : 0.0,
+    direction: [dirX, dirY, dirZ],
+    _shadow: true // LE GPU CALCULE LES OMBRES
   });
 
   return new deck.LightingEffect({ ambientLight, directionalLight });
@@ -221,34 +221,29 @@ function getLightingEffect(m) {
 // --- 3. L'INJECTION DE LA 3D AU CHARGEMENT DE LA CARTE ---
 map.on('style.load', () => {
   try {
-    // Création du calque 3D Deck.gl par dessus Mapbox
     deckOverlay = new deck.MapboxOverlay({
-      interleaved: true, // Se fond avec la carte pour ne pas cacher les noms de rue
-      effects: [], // Sera mis à jour tout de suite après
+      interleaved: true, 
+      effects: [], 
       layers: [
         new deck.Tile3DLayer({
           id: 'google-3d-tiles',
           data: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
-          // On passe explicitement le loader pour éviter le crash "loader manquant"
           loader: window.loaders ? window.loaders.Tiles3DLoader : undefined,
           loadOptions: {
             '3d-tiles': { isGoogleTileset: true }
           },
-          shadowEnabled: true // Active les ombres sur les bâtiments Google
+          shadowEnabled: true // Active les ombres sur la 3D
         })
       ]
     });
 
     map.addControl(deckOverlay);
     
-    // Initialise la lumière avec l'heure actuelle
     updateLighting(mins);
     updateSliderUI();
 
-    // Démarrage de la boucle d'animation du soleil (slider)
     requestAnimationFrame(animLoop);
 
-    // Téléchargement asynchrone des terrasses (ne bloque pas la carte)
     loadVenues().then(data => {
       VENUES = data;
       addVenueMarkers();
@@ -257,9 +252,9 @@ map.on('style.load', () => {
     });
 
   } catch (error) {
-    console.error("Échec de l'initialisation de Deck.gl :", error);
-    document.getElementById('errorToast').style.display = 'block';
-    document.getElementById('errorToast').textContent = "Erreur 3D: " + error.message;
+    console.error("Échec de Deck.gl :", error);
+    const errDiv = document.getElementById('errorToast');
+    if(errDiv) { errDiv.style.display = 'block'; errDiv.textContent = "Erreur 3D: " + error.message; }
   }
 });
 
@@ -279,19 +274,19 @@ function updateLighting(minutes) {
 function animLoop() {
   const diff = targetMins - renderedMins;
   if (Math.abs(diff) > 0.5) {
-    renderedMins += diff * 0.2; // Interpolation pour un mouvement fluide
+    renderedMins += diff * 0.2; 
     updateLighting(renderedMins);
   } else if (targetMins !== renderedMins) {
     renderedMins = targetMins;
-    updateLighting(renderedMins); // Arrêt précis
+    updateLighting(renderedMins); 
   }
   requestAnimationFrame(animLoop);
 }
 
-// --- DÉPLACEMENT FLUIDE DE LA CAMÉRA (Natif Mapbox) ---
+// --- DÉPLACEMENT FLUIDE DE LA CAMÉRA ---
 function flyToLocation(targetLng, targetLat, zoomLevel = 17) {
   map.flyTo({ 
-    center: [targetLng, targetLat - 0.001], // On décale un peu pour la carte du bas
+    center: [targetLng, targetLat - 0.001],
     zoom: zoomLevel, 
     speed: 1.2 
   });
@@ -364,7 +359,6 @@ function addVenueMarkers() {
   VENUES.forEach(venue=>{
     const inSun=venueInSun(venue);
     const el=makePin(venue,inSun);
-    // Le Pin est ajouté directement à la carte Mapbox (Il ne peut pas être caché par erreur)
     const marker=new mapboxgl.Marker({element:el,anchor:'center'}).setLngLat([venue.lng,venue.lat]).addTo(map);
     el.addEventListener('click',e=>{ e.stopPropagation(); openVenueCard(venue); });
     venueMarkers[venue.id]={marker,el};
@@ -432,7 +426,7 @@ document.getElementById('cardBackdrop').addEventListener('touchend',e=>{ e.preve
   card.addEventListener('touchend',()=>{ if(!active)return; active=false; card.style.transition=''; if(moved>70)closeVenueCard(); else card.style.transform=''; },{passive:true});
 })();
 
-// --- RECHERCHE ET AUTOCOMPLÉTION ---
+// --- RECHERCHE ET AUTOCOMPLÉTION (MAPBOX API) ---
 let acTimeout, toastTmt, searchMarker=null;
 const si=document.getElementById('searchInput'), acList=document.getElementById('ac-list'), spn=document.getElementById('spinner'), sico=document.querySelector('.s-icon');
 
@@ -463,7 +457,7 @@ async function selectPlace(mapboxId, name) {
     lng=feat.geometry.coordinates[0]; lat=feat.geometry.coordinates[1];
     si.value=name; acList.style.display='none';
     
-    flyToLocation(lng, lat, 17);
+    map.flyTo({center:[lng,lat], zoom:17});
     setTimeout(()=>showSearchPin([lng,lat]),900);
   } catch {}
 }
@@ -488,7 +482,7 @@ document.getElementById('geoBtn').addEventListener('click',()=>{
   showToast('📡 Locating…');
   navigator.geolocation.getCurrentPosition(p=>{ 
     lat=p.coords.latitude; lng=p.coords.longitude; userLat=lat; userLng=lng; 
-    flyToLocation(lng, lat, 16);
+    map.flyTo({center:[lng,lat], zoom:16});
     showToast('🎯 Location found!'); 
   },()=>showToast('❌ Access denied'));
 });
