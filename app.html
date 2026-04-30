@@ -5,22 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LitSpot — Find Sunny Spots & Sun-Lit Terraces Near You</title>
 
-<!-- Polices -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 
-<!-- 1. MAPBOX GL JS (La carte 2D de base) -->
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 
-<!-- 2. DECK.GL (Le moteur 3D GPU) -->
-<script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
-
-<!-- 3. LOADERS.GL (Indispensable pour lire le format 3D Tiles de Google) -->
-<script src="https://unpkg.com/@loaders.gl/core@3.4.4/dist/dist.min.js"></script>
-<script src="https://unpkg.com/@loaders.gl/3d-tiles@3.4.4/dist/dist.min.js"></script>
-
-<!-- 4. SUNCALC (L'algorithme astronomique) -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 
 <style>
@@ -29,10 +19,10 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 #map { position: absolute; inset: 0; }
 
 .mapboxgl-ctrl-group { background: rgba(255,255,255,0.92) !important; border: 1px solid rgba(0,0,0,0.08) !important; }
-.mapboxgl-ctrl-attrib { font-size: 9px !important; display: none !important;} 
+.mapboxgl-ctrl-attrib { display: none !important; }
 .mapboxgl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom) + 16px) !important; right: 12px !important; }
 
-/* RECHERCHE */
+/* BARRE DE RECHERCHE */
 .top-bar { position: absolute; top: calc(env(safe-area-inset-top) + 12px); left: 12px; right: 12px; z-index: 100; display: flex; gap: 10px; align-items: center; }
 .search-wrap { position: relative; flex: 1; }
 #searchInput { width: 100%; background: rgba(255,255,255,0.97); border: 1.5px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 14px 44px 14px 16px; font-family: 'Outfit', sans-serif; font-size: 16px; color: #1a1a2e; outline: none; box-shadow: 0 4px 20px rgba(0,0,0,0.12); -webkit-appearance: none; }
@@ -56,7 +46,7 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 .slider-track { position: relative; width: 4px; height: 130px; background: rgba(255,240,220,0.14); border-radius: 2px; cursor: pointer; touch-action: none; }
 .slider-thumb { position: absolute; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: radial-gradient(circle at 38% 38%, #FFE07A, #E8890C); border-radius: 50%; box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5); }
 
-/* CARTE DU LIEU */
+/* CARTE DU LIEU (VENUE CARD) */
 .venue-card { position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000; background: #FFFFFF; border: 1px solid rgba(0,0,0,0.06); border-radius: 24px 24px 0 0; overflow: hidden; box-shadow: 0 -8px 32px rgba(0,0,0,0.18); transform: translateY(100%); transition: transform .35s cubic-bezier(0.34, 1.2, 0.64, 1); pointer-events: none; padding-bottom: calc(env(safe-area-inset-bottom) + 8px); }
 .venue-card.visible { transform: translateY(0); pointer-events: all; }
 .card-handle { width: 36px; height: 4px; background: rgba(0,0,0,0.12); border-radius: 2px; margin: 12px auto 0; }
@@ -93,33 +83,15 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 .venue-card-close { position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 50%; background: rgba(28,20,16,0.12); border: none; font-size: 16px; font-weight: 700; cursor: pointer; z-index: 2000; }
 #cardBackdrop { display: none; position: fixed; inset: 0; z-index: 999; background: transparent; }
 #cardBackdrop.visible { display: block; }
-
-/* TOAST CLASSIQUE */
 #toast { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 20px); left: 50%; transform: translateX(-50%) translateY(8px); background: rgba(28,20,16,0.95); border-radius: 12px; padding: 10px 20px; font-size: 14px; color: #FFF5E6; z-index: 1500; pointer-events: none; opacity: 0; transition: opacity .25s, transform .25s; white-space: nowrap; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-/* TOAST D'ERREUR ROUGE */
-#errorToast { display:none; position:fixed; top:calc(env(safe-area-inset-top) + 80px); left:50%; transform:translateX(-50%); background:#e74c3c; color:#fff; padding:12px 20px; border-radius:12px; z-index:9999; font-weight:500; text-align:center; box-shadow:0 10px 25px rgba(231,76,60,0.4); max-width:90%; }
 </style>
 </head>
 <body>
 
-<div id="errorToast"></div>
-<script>
-window.addEventListener('error', function(e) {
-    const errDiv = document.getElementById('errorToast');
-    if(errDiv) {
-        errDiv.style.display = 'block';
-        errDiv.textContent = 'Erreur: ' + e.message;
-        setTimeout(() => errDiv.style.display='none', 8000);
-    }
-});
-</script>
-
 <div id="map"></div>
 <div id="cardBackdrop"></div>
 
-<!-- Search -->
 <div class="top-bar">
   <div class="search-wrap">
     <input id="searchInput" type="text" placeholder="Bar, restaurant, address…" autocomplete="off" spellcheck="false">
@@ -130,7 +102,6 @@ window.addEventListener('error', function(e) {
   <button class="geo-btn" id="geoBtn">🎯</button>
 </div>
 
-<!-- Le Slider -->
 <div class="time-pill">
   <div class="pill-time" id="timeTxt">12:00</div>
   <div class="pill-status" id="statusEmoji">☀️</div>
@@ -139,7 +110,6 @@ window.addEventListener('error', function(e) {
   </div>
 </div>
 
-<!-- Carte du Lieu -->
 <div class="venue-card" id="venueCard">
   <div class="card-handle"></div>
   <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
@@ -170,181 +140,283 @@ window.addEventListener('error', function(e) {
 
 <script>
 // --- CLÉS D'API ---
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
-const GOOGLE_API_KEY = 'AIzaSyBMZODV5KhtvM2Rix0c5dKDmo160QD65Wg';
+mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
 const SUPABASE_URL = 'https://dogontqbkihwircaldie.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ29udHFia2lod2lyY2FsZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTI3ODYsImV4cCI6MjA5Mjg2ODc4Nn0.5tvkp_zIEMZS8TM1PIYBuEJyBRIIvaTPzU3j9OTbMAA';
 
 // --- ÉTAT GLOBAL ---
-let lat = 45.5088, lng = -73.5878; // Montréal
+let lat = 45.5088, lng = -73.5878; // Centre ville Montréal
 let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
 let dragging = false;
-let deckOverlay;
 
-// --- 1. INITIALISATION CARTE MAPBOX ---
-mapboxgl.accessToken = MAPBOX_TOKEN;
+// --- 1. INITIALISATION DE LA CARTE MAPBOX ---
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/light-v11',
+  style: 'mapbox://styles/mapbox/light-v11', // Style clair, parfait pour voir les blocs 3D
   center: [lng, lat],
   zoom: 16.5,
-  pitch: 50, // <-- OPTIMISATION : Baisse la ligne d'horizon pour limiter la zone 3D à charger
+  pitch: 60,
   bearing: -20,
   antialias: true
 });
 
 map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
 
-// --- 2. LE MOTEUR D'OMBRES (GPU) ---
-function getLightingEffect(m) {
-  const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
+// --- 2. LE MOTEUR D'OMBRES LÉGER (Anti-Freeze) ---
+let buildingCache = [];
+let lastShadowTime = 0;
+
+// On scanne les bâtiments uniquement quand la caméra s'arrête de bouger
+function updateBuildingCache() {
+  if (map.getZoom() < 14.5) {
+      buildingCache = []; // On vide la mémoire si on dézoome trop
+      return;
+  }
   
-  const pos = SunCalc.getPosition(d, lat, lng);
-  const azimuth = pos.azimuth;
-  const altitude = pos.altitude;
-
-  const ambientLight = new deck.AmbientLight({
-    color: [255, 255, 255],
-    intensity: altitude > 0 ? 0.8 : 0.2
-  });
-
-  const dirX = Math.sin(azimuth) * Math.cos(altitude);
-  const dirY = Math.cos(azimuth) * Math.cos(altitude);
-  const dirZ = -Math.sin(altitude);
-
-  const directionalLight = new deck.DirectionalLight({
-    color: [255, 248, 240],
-    intensity: altitude > 0 ? 3.0 : 0.0,
-    direction: [dirX, dirY, dirZ],
-    _shadow: true 
-  });
-
-  return new deck.LightingEffect({ ambientLight, directionalLight });
+  if (!map.getLayer('3d-buildings')) return;
+  try {
+    // On limite à 500 bâtiments maximum pour ne JAMAIS faire lagger le téléphone
+    const features = map.queryRenderedFeatures({ layers: ['3d-buildings'] }).slice(0, 500);
+    const seen = new Set();
+    buildingCache = [];
+    
+    for (const f of features) {
+      if (!f.properties) continue;
+      const h = f.properties.height || f.properties.render_height;
+      if (!h || h < 2) continue;
+      
+      const key = f.id != null ? String(f.id) : JSON.stringify(f.geometry.coordinates[0][0]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      
+      const geom = f.geometry;
+      let ring;
+      if (geom.type === 'Polygon') ring = geom.coordinates[0];
+      else if (geom.type === 'MultiPolygon') ring = geom.coordinates[0][0];
+      else continue;
+      
+      buildingCache.push({ h: parseFloat(h), ring });
+    }
+  } catch(e) {}
 }
 
-// --- 3. L'INJECTION DE LA 3D AU CHARGEMENT DE LA CARTE ---
-map.on('style.load', () => {
-  try {
-    deckOverlay = new deck.MapboxOverlay({
-      interleaved: true, 
-      effects: [], 
-      layers: [
-        new deck.Tile3DLayer({
-          id: 'google-3d-tiles',
-          data: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
-          loader: window.loaders ? window.loaders.Tiles3DLoader : undefined,
-          loadOptions: {
-            '3d-tiles': { isGoogleTileset: true }
-          },
-          maximumScreenSpaceError: 40, // <-- OPTIMISATION MAJEURE : Baisse la résolution des modèles pour ne pas faire lagger le téléphone
-          shadowEnabled: true
-        })
-      ]
-    });
+map.on('moveend', updateBuildingCache);
+map.on('idle', updateBuildingCache);
 
-    map.addControl(deckOverlay);
-    
-    updateLighting(mins);
-    updateSliderUI();
+// Le calcul mathématique ultra-rapide
+function computeAndDrawShadows() {
+  const src = map.getSource('shadows');
+  if (!src || !map.isStyleLoaded()) return;
 
-    requestAnimationFrame(animLoop);
+  const d = new Date();
+  d.setHours(Math.floor(mins/60), Math.floor(mins%60), 0, 0);
+  const pos = SunCalc.getPosition(d, lat, lng);
+  const alt = pos.altitude;
+  const az  = pos.azimuth; 
 
-    loadVenues().then(data => {
-      VENUES = data;
-      addVenueMarkers();
-    }).catch(err => {
-      console.error("Erreur téléchargement Venues:", err);
-    });
-
-  } catch (error) {
-    console.error("Échec de Deck.gl :", error);
-    const errDiv = document.getElementById('errorToast');
-    if(errDiv) { errDiv.style.display = 'block'; errDiv.textContent = "Erreur 3D: " + error.message; }
+  // S'il fait nuit, on coupe les ombres
+  if (alt <= 0.015 || buildingCache.length === 0) {
+    src.setData({ type:'FeatureCollection', features:[] });
+    return;
   }
+
+  const shadowFactor = Math.min(1 / Math.tan(alt), 15);
+  const latRad = lat * Math.PI / 180;
+  const mPerDegLat = 111320;
+  const mPerDegLng = 111320 * Math.cos(latRad);
+
+  const sinAz = Math.sin(az);
+  const cosAz = Math.cos(az);
+  const features = [];
+
+  for (const b of buildingCache) {
+    const ring = b.ring;
+    const shadowLen = b.h * shadowFactor;
+    const dLng = (shadowLen * sinAz) / mPerDegLng;
+    const dLat = (shadowLen * cosAz) / mPerDegLat;
+
+    // Décalage géométrique ultra-rapide
+    const offsetRing = ring.map(pt => [pt[0] + dLng, pt[1] + dLat]);
+
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [offsetRing] }
+    });
+
+    for (let i = 0; i < ring.length - 1; i++) {
+      features.push({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [ring[i][0], ring[i][1]], 
+            [ring[i+1][0], ring[i+1][1]], 
+            [offsetRing[i+1][0], offsetRing[i+1][1]], 
+            [offsetRing[i][0], offsetRing[i][1]], 
+            [ring[i][0], ring[i][1]]
+          ]]
+        }
+      });
+    }
+  }
+
+  src.setData({ type:'FeatureCollection', features });
+}
+
+// L'éclairage des murs 3D
+function updateLighting() {
+  if (!map.isStyleLoaded()) return;
+  const d = new Date(); d.setHours(Math.floor(mins/60), Math.floor(mins%60), 0, 0);
+  const pos = SunCalc.getPosition(d, lat, lng);
+  const alt = (pos.altitude * 180) / Math.PI;
+  const az = (pos.azimuth * 180) / Math.PI;
+  
+  const mapboxAz = (az + 180 + 360) % 360;
+  const mapboxPolar = Math.max(1, Math.min(89, 90 - alt));
+  
+  let color='#fff8f0', intensity=0.6;
+  if (alt < -6)  { color='#070d1f'; intensity=0.05; }
+  else if (alt<=0) { color=`hsl(25,40%,25%)`; intensity=0.2; }
+  else if (alt<15) { color=`hsl(35,80%,55%)`; intensity=0.4; }
+  
+  try {
+    map.setLight({
+      anchor: 'map',
+      color: color,
+      intensity: intensity,
+      position: [1.5, mapboxAz, mapboxPolar]
+    });
+  } catch(e) {}
+}
+
+
+// --- 3. CHARGEMENT DE LA CARTE 3D (Les blocs) ---
+map.on('style.load', async () => {
+
+  // Trouve la couche de texte pour mettre la 3D en dessous
+  const layers = map.getStyle().layers;
+  let labelLayerId;
+  for (const layer of layers) {
+    if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
+      labelLayerId = layer.id;
+      break;
+    }
+  }
+
+  // 1. Ajout de la couche des ombres projetées
+  map.addSource('shadows', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  map.addLayer({
+    id: 'shadows-layer', type: 'fill', source: 'shadows',
+    paint: { 'fill-color':'#0f172a', 'fill-opacity':0.35, 'fill-antialias':true }
+  }, labelLayerId);
+
+  // 2. Ajout des blocs de bâtiments 3D natifs
+  map.addLayer({
+    id: '3d-buildings',
+    source: 'composite',
+    'source-layer': 'building',
+    filter: ['all', ['==', 'extrude', 'true'], ['has', 'height']],
+    type: 'fill-extrusion',
+    minzoom: 14.5,
+    paint: {
+      'fill-extrusion-color': '#e8e4dc',
+      'fill-extrusion-height': ['get', 'height'],
+      'fill-extrusion-base': ['get', 'min_height'],
+      'fill-extrusion-opacity': 0.85,
+    }
+  }, labelLayerId);
+
+  // 3. Lancement des moteurs
+  updateSliderUI();
+  updateLighting();
+  
+  // Téléchargement des terrasses
+  VENUES = await loadVenues();
+  addVenueMarkers();
+  
+  setTimeout(() => {
+    updateBuildingCache();
+    computeAndDrawShadows(true);
+  }, 1000);
 });
 
 
-// --- LISSAGE DE L'ANIMATION DU SLIDER ---
+// --- LISSAGE DE L'ANIMATION LORS DU GLISSEMENT ---
 let targetMins = mins;
-let renderedMins = mins;
-
-function updateLighting(minutes) {
-  if (deckOverlay) {
-    deckOverlay.setProps({
-      effects: [getLightingEffect(minutes)]
-    });
-  }
-}
 
 function animLoop() {
-  const diff = targetMins - renderedMins;
-  if (Math.abs(diff) > 0.5) {
-    renderedMins += diff * 0.2; 
-    updateLighting(renderedMins);
-  } else if (targetMins !== renderedMins) {
-    renderedMins = targetMins;
-    updateLighting(renderedMins); 
+  if (Math.abs(targetMins - mins) > 0.5) {
+    mins += (targetMins - mins) * 0.2;
+    if (map.isStyleLoaded()) {
+      updateLighting();
+      // On calcule les ombres que toutes les 50ms pour garder 60FPS
+      const now = performance.now();
+      if (now - lastShadowTime > 50) {
+        computeAndDrawShadows();
+        lastShadowTime = now;
+      }
+    }
+  } else if (targetMins !== mins) {
+    mins = targetMins;
+    if (map.isStyleLoaded()) {
+      updateLighting();
+      computeAndDrawShadows(true); 
+    }
   }
   requestAnimationFrame(animLoop);
 }
 
-// --- DÉPLACEMENT FLUIDE DE LA CAMÉRA ---
-function flyToLocation(targetLng, targetLat, zoomLevel = 17) {
-  map.flyTo({ 
-    center: [targetLng, targetLat - 0.001],
-    zoom: zoomLevel, 
-    speed: 1.2 
-  });
-}
+requestAnimationFrame(animLoop); // Démarrage immédiat
 
 // --- UI DU SLIDER ---
 const track = document.getElementById('sliderTrack');
 const thumb = document.getElementById('sliderThumb');
 
 function updateSliderUI() {
-  const pct=mins/1439;
+  const pct=targetMins/1439;
   const trackH=track.offsetHeight, thumbH=thumb.offsetHeight;
   if(trackH && thumbH) {
       thumb.style.top = ((1-pct)*(trackH-thumbH))+'px';
   }
-  document.getElementById('timeTxt').textContent = String(~~(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
+  document.getElementById('timeTxt').textContent = String(~~(targetMins/60)).padStart(2,'0')+':'+String(Math.floor(targetMins%60)).padStart(2,'0');
   
-  const d=new Date(); d.setHours(~~(mins/60),mins%60,0,0);
+  const d=new Date(); d.setHours(~~(targetMins/60),targetMins%60,0,0);
   const alt=(SunCalc.getPosition(d,lat,lng).altitude * 180) / Math.PI;
   document.getElementById('statusEmoji').textContent = alt<-6?'🌙':alt<=0?'🌅':alt<10?'🌤️':'☀️';
 }
 function pxToMins(y) { const r=track.getBoundingClientRect(); return Math.round(Math.max(0,Math.min(1,1-(y-r.top)/r.height))*1439); }
 
-track.addEventListener('mousedown',e=>{ dragging=true; mins=pxToMins(e.clientY); targetMins=mins; updateSliderUI(); updateVenuePins(); e.preventDefault(); });
-document.addEventListener('mousemove',e=>{ if(!dragging)return; mins=pxToMins(e.clientY); targetMins=mins; updateSliderUI(); updateVenuePins(); });
+track.addEventListener('mousedown',e=>{ dragging=true; targetMins=pxToMins(e.clientY); updateSliderUI(); updateVenuePins(); e.preventDefault(); });
+document.addEventListener('mousemove',e=>{ if(!dragging)return; targetMins=pxToMins(e.clientY); updateSliderUI(); updateVenuePins(); });
 document.addEventListener('mouseup',()=>{ dragging=false; });
-track.addEventListener('touchstart',e=>{ dragging=true; mins=pxToMins(e.touches[0].clientY); targetMins=mins; updateSliderUI(); updateVenuePins(); e.preventDefault(); },{ passive:false });
-document.addEventListener('touchmove',e=>{ if(!dragging)return; mins=pxToMins(e.touches[0].clientY); targetMins=mins; updateSliderUI(); updateVenuePins(); },{ passive:false });
+track.addEventListener('touchstart',e=>{ dragging=true; targetMins=pxToMins(e.touches[0].clientY); updateSliderUI(); updateVenuePins(); e.preventDefault(); },{ passive:false });
+document.addEventListener('touchmove',e=>{ if(!dragging)return; targetMins=pxToMins(e.touches[0].clientY); updateSliderUI(); updateVenuePins(); },{ passive:false });
 document.addEventListener('touchend',()=>{ dragging=false; });
 
 
 // --- BASE DE DONNÉES & PINS (Supabase) ---
 async function loadVenues() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?active=eq.true&select=*`, {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-  });
-  if (!res.ok) throw new Error("Échec réseau API Supabase");
-  const data = await res.json();
-  return data.map(v => ({
-    id: v.id, name: v.name, type: v.type, emoji: v.emoji, lng: v.lng, lat: v.lat,
-    reserveUrl: v.reserve_url, directionsUrl: v.directions_url,
-    sunWindows: v.sun_windows, photoUrl: v.photo_url || null,
-  }));
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?active=eq.true&select=*`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    const data = await res.json();
+    return data.map(v => ({
+      id: v.id, name: v.name, type: v.type, emoji: v.emoji, lng: v.lng, lat: v.lat,
+      reserveUrl: v.reserve_url, directionsUrl: v.directions_url,
+      sunWindows: v.sun_windows, photoUrl: v.photo_url || null,
+    }));
+  } catch(e) { return []; }
 }
 
 let VENUES=[], currentVenue=null;
 const venueMarkers={};
 
-function venueInSun(v) { const h=mins/60; return v.sunWindows&&v.sunWindows.some(([s,e])=>h>=s&&h<e); }
+function venueInSun(v) { const h=targetMins/60; return v.sunWindows&&v.sunWindows.some(([s,e])=>h>=s&&h<e); }
 
 function getSunSlots(venue) {
-  const S=7,E=21,SP=E-S,nowH=mins/60;
+  const S=7,E=21,SP=E-S,nowH=targetMins/60;
   return venue.sunWindows.map(([start,end])=>{
     const fmt=h=>`${String(~~h).padStart(2,'0')}:${h%1===0.5?'30':'00'}`;
     const left=Math.max(0,((start-S)/SP)*100);
@@ -398,7 +470,7 @@ function openVenueCard(venue) {
   document.querySelector('.time-pill').style.opacity='0';
   document.querySelector('.time-pill').style.pointerEvents='none';
   
-  flyToLocation(venue.lng, venue.lat, 17);
+  map.flyTo({center:[venue.lng, venue.lat - 0.001], zoom:17, speed:1.2});
 }
 
 function updateVenueCard(venue) {
@@ -443,8 +515,9 @@ si.addEventListener('input',()=>{ clearTimeout(acTimeout); const q=si.value.trim
 async function fetchPlaces(q) {
   spn.style.display='block'; sico.style.display='none';
   try {
-    const res=await fetch(`https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${MAPBOX_TOKEN}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${userLng||lng},${userLat||lat}`);
-    renderAC((await res.json()).suggestions||[]);
+    const res=await fetch(`https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${mapboxgl.accessToken}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${userLng||lng},${userLat||lat}`);
+    const data=await res.json();
+    renderAC(data.suggestions||[]);
   } catch { acList.style.display='none'; }
   finally { spn.style.display='none'; sico.style.display='block'; }
 }
@@ -458,8 +531,9 @@ function showSearchPin(lngLat) {
 
 async function selectPlace(mapboxId, name) {
   try {
-    const res=await fetch(`https://api.mapbox.com/search/searchbox/v1/retrieve/${mapboxId}?access_token=${MAPBOX_TOKEN}&session_token=litspot-session`);
-    const feat=(await res.json()).features?.[0]; if(!feat)return;
+    const res=await fetch(`https://api.mapbox.com/search/searchbox/v1/retrieve/${mapboxId}?access_token=${mapboxgl.accessToken}&session_token=litspot-session`);
+    const data=await res.json();
+    const feat=data.features?.[0]; if(!feat)return;
     lng=feat.geometry.coordinates[0]; lat=feat.geometry.coordinates[1];
     si.value=name; acList.style.display='none';
     
@@ -505,7 +579,7 @@ async function trackClick(venueId, clickType) {
   } catch(e){}
 }
 
-setInterval(()=>{ const n=new Date(),lm=n.getHours()*60+n.getMinutes(); if(!dragging&&Math.abs(lm-mins)<=1){mins=lm; targetMins=mins; updateSliderUI();updateVenuePins();} },60000);
+setInterval(()=>{ const n=new Date(),lm=n.getHours()*60+n.getMinutes(); if(!dragging&&Math.abs(lm-targetMins)<=1){targetMins=lm;updateSliderUI();updateVenuePins();} },60000);
 
 if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(p => { userLat=p.coords.latitude; userLng=p.coords.longitude; }, ()=>{});
