@@ -5,17 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LitSpot — Find Sunny Spots & Sun-Lit Terraces Near You</title>
 
+<!-- Polices -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 
+<!-- 1. MAPBOX GL JS (La carte 2D de base) -->
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 
+<!-- 2. DECK.GL (Le moteur 3D GPU) -->
 <script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
 
+<!-- 3. LOADERS.GL (Indispensable pour lire le format 3D Tiles de Google) -->
 <script src="https://unpkg.com/@loaders.gl/core@3.4.4/dist/dist.min.js"></script>
 <script src="https://unpkg.com/@loaders.gl/3d-tiles@3.4.4/dist/dist.min.js"></script>
 
+<!-- 4. SUNCALC (L'algorithme astronomique) -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 
 <style>
@@ -114,6 +119,7 @@ window.addEventListener('error', function(e) {
 <div id="map"></div>
 <div id="cardBackdrop"></div>
 
+<!-- Search -->
 <div class="top-bar">
   <div class="search-wrap">
     <input id="searchInput" type="text" placeholder="Bar, restaurant, address…" autocomplete="off" spellcheck="false">
@@ -124,6 +130,7 @@ window.addEventListener('error', function(e) {
   <button class="geo-btn" id="geoBtn">🎯</button>
 </div>
 
+<!-- Le Slider -->
 <div class="time-pill">
   <div class="pill-time" id="timeTxt">12:00</div>
   <div class="pill-status" id="statusEmoji">☀️</div>
@@ -132,6 +139,7 @@ window.addEventListener('error', function(e) {
   </div>
 </div>
 
+<!-- Carte du Lieu -->
 <div class="venue-card" id="venueCard">
   <div class="card-handle"></div>
   <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
@@ -178,32 +186,29 @@ let deckOverlay;
 mapboxgl.accessToken = MAPBOX_TOKEN;
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/light-v11', // Fond clair
+  style: 'mapbox://styles/mapbox/light-v11',
   center: [lng, lat],
   zoom: 16.5,
-  pitch: 60,
+  pitch: 50, // <-- OPTIMISATION : Baisse la ligne d'horizon pour limiter la zone 3D à charger
   bearing: -20,
   antialias: true
 });
 
 map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
 
-// --- 2. LE MOTEUR D'OMBRES (API 100% STABLE : DirectionalLight) ---
+// --- 2. LE MOTEUR D'OMBRES (GPU) ---
 function getLightingEffect(m) {
   const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
   
-  // Moteur astronomique
   const pos = SunCalc.getPosition(d, lat, lng);
   const azimuth = pos.azimuth;
   const altitude = pos.altitude;
 
-  // Lumière d'ambiance
   const ambientLight = new deck.AmbientLight({
     color: [255, 255, 255],
     intensity: altitude > 0 ? 0.8 : 0.2
   });
 
-  // Calcul du vecteur 3D pour la lumière (Remplace la méthode "SunLight" expérimentale)
   const dirX = Math.sin(azimuth) * Math.cos(altitude);
   const dirY = Math.cos(azimuth) * Math.cos(altitude);
   const dirZ = -Math.sin(altitude);
@@ -212,7 +217,7 @@ function getLightingEffect(m) {
     color: [255, 248, 240],
     intensity: altitude > 0 ? 3.0 : 0.0,
     direction: [dirX, dirY, dirZ],
-    _shadow: true // LE GPU CALCULE LES OMBRES
+    _shadow: true 
   });
 
   return new deck.LightingEffect({ ambientLight, directionalLight });
@@ -232,7 +237,8 @@ map.on('style.load', () => {
           loadOptions: {
             '3d-tiles': { isGoogleTileset: true }
           },
-          shadowEnabled: true // Active les ombres sur la 3D
+          maximumScreenSpaceError: 40, // <-- OPTIMISATION MAJEURE : Baisse la résolution des modèles pour ne pas faire lagger le téléphone
+          shadowEnabled: true
         })
       ]
     });
