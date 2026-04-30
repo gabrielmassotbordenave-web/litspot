@@ -9,11 +9,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 
-<!-- MAPBOX GL JS (Le socle natif, impossible à freezer) -->
+<!-- MAPBOX GL JS -->
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 
-<!-- SUNCALC (Pour la trajectoire du soleil) -->
+<!-- SUNCALC -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
 
 <style>
@@ -25,7 +25,7 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 .mapboxgl-ctrl-attrib { display: none !important; }
 .mapboxgl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom) + 16px) !important; right: 12px !important; }
 
-/* BARRE DE RECHERCHE */
+/* RECHERCHE */
 .top-bar { position: absolute; top: calc(env(safe-area-inset-top) + 12px); left: 12px; right: 12px; z-index: 100; display: flex; gap: 10px; align-items: center; }
 .search-wrap { position: relative; flex: 1; }
 #searchInput { width: 100%; background: rgba(255,255,255,0.97); border: 1.5px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 14px 44px 14px 16px; font-family: 'Outfit', sans-serif; font-size: 16px; color: #1a1a2e; outline: none; box-shadow: 0 4px 20px rgba(0,0,0,0.12); -webkit-appearance: none; }
@@ -165,7 +165,6 @@ const map = new mapboxgl.Map({
 
 map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
 
-// --- LE CACHE DES BÂTIMENTS (Pour la rapidité) ---
 let buildingCache = [];
 function updateBuildingCache() {
   if (map.getZoom() < 14) return;
@@ -199,7 +198,7 @@ function updateBuildingCache() {
 map.on('moveend', updateBuildingCache);
 map.on('idle', updateBuildingCache);
 
-// --- LE MOTEUR D'OMBRES GÉOMÉTRIQUE RÉPARÉ ---
+// --- LA CORRECTION MATHÉMATIQUE (LE SENS ET LA FORME) ---
 function computeAndDrawShadows() {
   const src = map.getSource('shadows');
   if (!src || !map.isStyleLoaded()) return;
@@ -218,10 +217,10 @@ function computeAndDrawShadows() {
   const shadowFactor = Math.min(1 / Math.tan(alt), 15);
   const latRad = lat * Math.PI / 180;
   
-  // Correction de la direction (L'ombre fuit le soleil de manière opposée)
-  const shadowAngle = az + Math.PI; 
-  const dLng = (shadowFactor * Math.sin(shadowAngle)) / (111320 * Math.cos(latRad));
-  const dLat = (shadowFactor * Math.cos(shadowAngle)) / 111320;
+  // CORRECTION MAJEURE : On enlève le (+ Math.PI) qui inversait la direction !
+  // La fonction sinus gère l'Est/Ouest, cosinus gère le Nord/Sud.
+  const dLng = (shadowFactor * Math.sin(az)) / (111320 * Math.cos(latRad));
+  const dLat = (shadowFactor * Math.cos(az)) / 111320;
 
   const features = [];
 
@@ -232,13 +231,11 @@ function computeAndDrawShadows() {
 
     const offsetRing = ring.map(pt => [pt[0] + shiftX, pt[1] + shiftY]);
 
-    // 1. Tête de l'ombre
     features.push({
       type: 'Feature',
       geometry: { type: 'Polygon', coordinates: [offsetRing] }
     });
 
-    // 2. Corps de l'ombre
     for (let i = 0; i < ring.length - 1; i++) {
       features.push({
         type: 'Feature',
@@ -259,7 +256,6 @@ function computeAndDrawShadows() {
   src.setData({ type:'FeatureCollection', features });
 }
 
-// L'éclairage des murs 3D
 function updateLighting() {
   if (!map.isStyleLoaded()) return;
   const d = new Date(); d.setHours(Math.floor(mins/60), Math.floor(mins%60), 0, 0);
@@ -286,7 +282,6 @@ function updateLighting() {
 }
 
 
-// --- CHARGEMENT DES COUCHES ---
 map.on('style.load', async () => {
 
   const layers = map.getStyle().layers;
@@ -298,9 +293,7 @@ map.on('style.load', async () => {
     }
   }
 
-  // LA CORRECTION DU "MÉLANGE DE FORMES" : 
-  // On utilise un `fill-extrusion` à hauteur 0. 
-  // Mapbox fusionne automatiquement tout ce qui est dedans pour faire une forme propre.
+  // Couche d'ombre : Le 'fill-extrusion' à hauteur 0.01 fusionne les formes géométriques ensemble
   map.addSource('shadows', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
   map.addLayer({
     id: 'shadows-layer', 
@@ -310,11 +303,11 @@ map.on('style.load', async () => {
         'fill-extrusion-color': '#0f172a', 
         'fill-extrusion-height': 0.01,
         'fill-extrusion-base': 0,
-        'fill-extrusion-opacity': 0.35 // L'opacité s'applique sur le tout, pas sur chaque triangle !
+        'fill-extrusion-opacity': 0.35 
     }
   }, labelLayerId);
 
-  // Les bâtiments Mapbox (Comme sur ton screenshot Google)
+  // Les bâtiments de base Mapbox
   map.addLayer({
     id: '3d-buildings',
     source: 'composite',
@@ -333,7 +326,6 @@ map.on('style.load', async () => {
   updateSliderUI();
   updateLighting();
   
-  // Chargement des Terrasses Supabase
   VENUES = await loadVenues();
   addVenueMarkers();
   
@@ -343,8 +335,6 @@ map.on('style.load', async () => {
   }, 1000);
 });
 
-
-// --- ANIMATION FLUIDE DU SLIDER ---
 let lastShadowTime = 0;
 
 function animLoop() {
@@ -352,7 +342,6 @@ function animLoop() {
     mins += (targetMins - mins) * 0.2;
     if (map.isStyleLoaded()) {
       updateLighting();
-      // On calcule les ombres que toutes les 40ms pour garder un téléphone fluide
       const now = performance.now();
       if (now - lastShadowTime > 40) {
         computeAndDrawShadows();
@@ -371,7 +360,6 @@ function animLoop() {
 
 requestAnimationFrame(animLoop);
 
-// --- UI DU SLIDER ---
 const track = document.getElementById('sliderTrack');
 const thumb = document.getElementById('sliderThumb');
 
@@ -396,7 +384,6 @@ track.addEventListener('touchstart',e=>{ dragging=true; targetMins=pxToMins(e.to
 document.addEventListener('touchmove',e=>{ if(!dragging)return; targetMins=pxToMins(e.touches[0].clientY); updateSliderUI(); updateVenuePins(); },{ passive:false });
 document.addEventListener('touchend',()=>{ dragging=false; });
 
-// --- BASE DE DONNÉES & PINS (Supabase) ---
 async function loadVenues() {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?active=eq.true&select=*`, {
@@ -505,7 +492,6 @@ document.getElementById('cardBackdrop').addEventListener('touchend',e=>{ e.preve
   card.addEventListener('touchend',()=>{ if(!active)return; active=false; card.style.transition=''; if(moved>70)closeVenueCard(); else card.style.transform=''; },{passive:true});
 })();
 
-// --- RECHERCHE ET AUTOCOMPLÉTION ---
 let acTimeout, toastTmt, searchMarker=null;
 const si=document.getElementById('searchInput'), acList=document.getElementById('ac-list'), spn=document.getElementById('spinner'), sico=document.querySelector('.s-icon');
 
