@@ -9,14 +9,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
 
-<!-- 1. MapLibre GL JS (Le socle de la carte) -->
+<!-- 1. MapLibre GL JS (La carte 2D de base) -->
 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
 
-<!-- 2. Deck.gl et Loaders (Pour la 3D Google et le Shadow Mapping) -->
+<!-- 2. Deck.gl (Moteur 3D WebGL Unifié - Contient tout, pas besoin de loaders.gl séparés) -->
 <script src="https://unpkg.com/deck.gl@8.9.33/dist.min.js"></script>
-<script src="https://unpkg.com/@loaders.gl/core@3.4.4/dist/dist.min.js"></script>
-<script src="https://unpkg.com/@loaders.gl/3d-tiles@3.4.4/dist/dist.min.js"></script>
 
 <!-- 3. SunCalc (Le Moteur Astronomique) -->
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
@@ -96,6 +94,7 @@ html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfi
 </head>
 <body>
 
+<!-- Le conteneur WebGL -->
 <div id="map"></div>
 <div id="cardBackdrop"></div>
 
@@ -160,22 +159,19 @@ let lat = 45.5088, lng = -73.5878;
 let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
 let dragging = false;
-let deckOverlay;
 
-// --- 1. INITIALISATION DE LA CARTE 2D (MAPLIBRE) ---
-const map = new maplibregl.Map({
-  container: 'map',
-  style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-  center: [lng, lat],
+let deckgl; // Le Moteur WebGL Principal
+let maplibreMap; // La référence à la carte de base
+
+let viewState = {
+  longitude: lng,
+  latitude: lat,
   zoom: 16.5,
-  pitch: 60,
-  bearing: -20,
-  antialias: true
-});
+  pitch: 60, // Angle parfait pour la 3D
+  bearing: -20
+};
 
-map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
-
-// --- 2. LE MOTEUR D'OMBRES DECK.GL (GPU) ---
+// --- MOTEUR DE LUMIÈRE & OMBRES GPU ---
 function getLightingEffect(m) {
   const d = new Date(); d.setHours(Math.floor(m/60), Math.floor(m%60), 0, 0);
   const pos = SunCalc.getPosition(d, lat, lng);
@@ -189,53 +185,74 @@ function getLightingEffect(m) {
   const directionalLight = new deck.SunLight({
     timestamp: d.getTime(),
     color: [255, 248, 240],
-    intensity: alt > 0 ? 2.5 : 0.0,
-    _shadow: true // LE GPU CALCULE LES OMBRES
+    intensity: alt > 0 ? 3.0 : 0.0,
+    _shadow: true // LE MOTEUR D'OMBRE DECK.GL
   });
 
   return new deck.LightingEffect({ ambientLight, directionalLight });
 }
 
-// --- 3. L'INSERTION DE LA 3D GOOGLE (PROPRE) ---
-map.on('load', async () => {
-  try {
-    deckOverlay = new deck.MapboxOverlay({
-      interleaved: false,
-      effects: [getLightingEffect(mins)],
-      layers: [
-        new deck.Tile3DLayer({
-          id: 'google-3d',
-          data: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
-          loadOptions: { '3d-tiles': { isGoogleTileset: true } },
-          shadowEnabled: true // Active les ombres sur la 3D
-        })
-      ]
-    });
-
-    map.addControl(deckOverlay);
-
-    // Initialisation du reste de l'app
-    updateSliderUI();
-    VENUES = await loadVenues();
-    addVenueMarkers();
+// --- INITIALISATION PROPRE DE DECK.GL ---
+// On demande explicitement à DeckGL d'utiliser MapLibre
+try {
+  deckgl = new deck.DeckGL({
+    container: 'map',
+    map: maplibregl, // Indispensable pour l'intégration propre
+    mapStyle: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', // Fond très léger
+    initialViewState: viewState,
+    controller: true,
+    useDevicePixels: false, // Optimisation anti-freeze
     
-    // On lance la boucle d'animation
-    requestAnimationFrame(animLoop);
+    effects: [getLightingEffect(mins)],
+    
+    layers: [
+      // LA COUCHE 3D GOOGLE
+      new deck.Tile3DLayer({
+        id: 'google-3d',
+        data: `https://tile.googleapis.com/v1/3dtiles/root.json?key=${GOOGLE_API_KEY}`,
+        loadOptions: {
+          '3d-tiles': { isGoogleTileset: true }
+        },
+        shadowEnabled: true // Active les ombres sur la 3D
+      })
+    ],
+    
+    onViewStateChange: ({viewState: v}) => {
+      viewState = v;
+      lng = v.longitude;
+      lat = v.latitude;
+    },
+    
+    onLoad: () => {
+      // Récupère l'instance MapLibre pour y attacher tes pins
+      maplibreMap = deckgl.getMapboxMap();
+      if(maplibreMap) {
+        maplibreMap.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
+      }
 
-  } catch (error) {
-    console.error("Erreur d'initialisation 3D:", error);
-  }
-});
+      // Charge les terrasses depuis Supabase
+      loadVenues().then(venues => {
+        VENUES = venues;
+        addVenueMarkers();
+      }).catch(e => console.error("Erreur chargement Venues:", e));
 
-// --- LISSAGE DE L'ANIMATION DU SLIDER ---
+      updateSliderUI();
+      requestAnimationFrame(animLoop);
+    }
+  });
+} catch (error) {
+  console.error("Erreur critique d'initialisation de la carte:", error);
+}
+
+// --- LISSAGE DE L'ANIMATION LORS DU GLISSEMENT ---
 let targetMins = mins;
 let renderedMins = mins;
 
 function animLoop() {
   if (Math.abs(targetMins - renderedMins) > 0.5) {
     renderedMins += (targetMins - renderedMins) * 0.2;
-    if (deckOverlay) {
-      deckOverlay.setProps({ effects: [getLightingEffect(renderedMins)] });
+    if (deckgl) {
+      deckgl.setProps({ effects: [getLightingEffect(renderedMins)] });
     }
   } else {
     renderedMins = targetMins;
@@ -245,6 +262,19 @@ function animLoop() {
 
 function updateLighting(minutes) {
   targetMins = minutes;
+}
+
+// --- DÉPLACEMENT FLUIDE DE LA CAMÉRA ---
+function flyToLocation(targetLng, targetLat, zoomLevel = 17) {
+  viewState = {
+    ...viewState,
+    longitude: targetLng,
+    latitude: targetLat - 0.001, // Décalage pour laisser la place à la carte en bas
+    zoom: zoomLevel,
+    transitionDuration: 1000,
+    transitionInterpolator: new deck.FlyToInterpolator()
+  };
+  if (deckgl) deckgl.setProps({ initialViewState: viewState });
 }
 
 // --- UI DU SLIDER ---
@@ -272,19 +302,18 @@ track.addEventListener('touchstart',e=>{ dragging=true; mins=pxToMins(e.touches[
 document.addEventListener('touchmove',e=>{ if(!dragging)return; mins=pxToMins(e.touches[0].clientY); updateSliderUI(); updateLighting(mins); updateVenuePins(); },{ passive:false });
 document.addEventListener('touchend',()=>{ dragging=false; });
 
-// --- BASE DE DONNÉES & VENUES ---
+// --- BASE DE DONNÉES & PINS (Supabase) ---
 async function loadVenues() {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?active=eq.true&select=*`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-    });
-    const data = await res.json();
-    return data.map(v => ({
-      id: v.id, name: v.name, type: v.type, emoji: v.emoji, lng: v.lng, lat: v.lat,
-      reserveUrl: v.reserve_url, directionsUrl: v.directions_url,
-      sunWindows: v.sun_windows, photoUrl: v.photo_url || null,
-    }));
-  } catch(e) { return []; }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/venues?active=eq.true&select=*`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (!res.ok) throw new Error("Erreur réseau");
+  const data = await res.json();
+  return data.map(v => ({
+    id: v.id, name: v.name, type: v.type, emoji: v.emoji, lng: v.lng, lat: v.lat,
+    reserveUrl: v.reserve_url, directionsUrl: v.directions_url,
+    sunWindows: v.sun_windows, photoUrl: v.photo_url || null,
+  }));
 }
 
 let VENUES=[], currentVenue=null;
@@ -311,11 +340,11 @@ function makePin(venue, inSun) {
 }
 
 function addVenueMarkers() {
+  if (!maplibreMap) return;
   VENUES.forEach(venue=>{
     const inSun=venueInSun(venue);
     const el=makePin(venue,inSun);
-    // Pin sur MapLibre
-    const marker=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([venue.lng,venue.lat]).addTo(map);
+    const marker=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([venue.lng,venue.lat]).addTo(maplibreMap);
     el.addEventListener('click',e=>{ e.stopPropagation(); openVenueCard(venue); });
     venueMarkers[venue.id]={marker,el};
   });
@@ -347,8 +376,7 @@ function openVenueCard(venue) {
   document.getElementById('cardBackdrop').classList.add('visible');
   document.querySelector('.time-pill').style.opacity='0';
   document.querySelector('.time-pill').style.pointerEvents='none';
-  
-  map.flyTo({center:[venue.lng,venue.lat], zoom:17, offset:[0,-120]});
+  flyToLocation(venue.lng, venue.lat, 17);
 }
 
 function updateVenueCard(venue) {
@@ -382,7 +410,7 @@ document.getElementById('cardBackdrop').addEventListener('touchend',e=>{ e.preve
   card.addEventListener('touchend',()=>{ if(!active)return; active=false; card.style.transition=''; if(moved>70)closeVenueCard(); else card.style.transform=''; },{passive:true});
 })();
 
-// --- RECHERCHE ET AUTOCOMPLÉTION (MAPBOX API) ---
+// --- RECHERCHE ET AUTOCOMPLÉTION ---
 let acTimeout, toastTmt, searchMarker=null;
 const si=document.getElementById('searchInput'), acList=document.getElementById('ac-list'), spn=document.getElementById('spinner'), sico=document.querySelector('.s-icon');
 
@@ -401,9 +429,10 @@ async function fetchPlaces(q) {
 
 function showSearchPin(lngLat) {
   if (searchMarker) { searchMarker.remove(); searchMarker=null; }
+  if(!maplibreMap) return;
   const el=document.createElement('div');
   el.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;animation:pinDrop 0.3s cubic-bezier(0.34,1.56,0.64,1)"><div style="background:#e74c3c;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center"><div style="width:10px;height:10px;background:#fff;border-radius:50%;transform:rotate(45deg)"></div></div></div>`;
-  searchMarker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(lngLat).addTo(map);
+  searchMarker=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(lngLat).addTo(maplibreMap);
 }
 
 async function selectPlace(mapboxId, name) {
@@ -413,7 +442,7 @@ async function selectPlace(mapboxId, name) {
     lng=feat.geometry.coordinates[0]; lat=feat.geometry.coordinates[1];
     si.value=name; acList.style.display='none';
     
-    map.flyTo({center:[lng,lat], zoom:17});
+    flyToLocation(lng, lat, 17);
     setTimeout(()=>showSearchPin([lng,lat]),900);
   } catch {}
 }
@@ -438,7 +467,7 @@ document.getElementById('geoBtn').addEventListener('click',()=>{
   showToast('📡 Locating…');
   navigator.geolocation.getCurrentPosition(p=>{ 
     lat=p.coords.latitude; lng=p.coords.longitude; userLat=lat; userLng=lng; 
-    map.flyTo({center:[lng,lat], zoom:16});
+    flyToLocation(lng, lat, 16);
     showToast('🎯 Location found!'); 
   },()=>showToast('❌ Access denied'));
 });
@@ -457,6 +486,7 @@ async function trackClick(venueId, clickType) {
 
 setInterval(()=>{ const n=new Date(),lm=n.getHours()*60+n.getMinutes(); if(!dragging&&Math.abs(lm-mins)<=1){mins=lm;updateSliderUI();updateLighting(mins);updateVenuePins();} },60000);
 
+// Demande silencieuse de la position au démarrage
 if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(p => { userLat=p.coords.latitude; userLng=p.coords.longitude; }, ()=>{});
 }
