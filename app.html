@@ -12,7 +12,7 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-#map { position: absolute; inset: 0; }
+#map { position: absolute; inset: 0; background: #e2e8f0; }
 .mapboxgl-ctrl-group { background: rgba(255,255,255,0.92) !important; border: 1px solid rgba(0,0,0,0.08) !important; }
 .mapboxgl-ctrl-attrib { font-size: 9px !important; }
 .mapboxgl-ctrl-bottom-right { bottom: calc(env(safe-area-inset-bottom) + 16px) !important; right: 12px !important; }
@@ -191,36 +191,26 @@ map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-ri
 function getDate() { const d=new Date(); d.setHours(~~(mins/60),mins%60,0,0); return d; }
 function toDeg(r) { return r * 180 / Math.PI; }
 
-// ── CONVEX HULL ─────────────────────────────────────────────────────
-function cross(o, a, b) { return (a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]); }
-function convexHull(pts) {
-  if (pts.length < 3) return pts;
-  const p = pts.slice().sort((a,b) => a[0]===b[0] ? a[1]-b[1] : a[0]-b[0]);
-  const lo=[], hi=[];
-  for (const pt of p) {
-    while (lo.length>=2 && cross(lo[lo.length-2],lo[lo.length-1],pt)<=0) lo.pop();
-    lo.push(pt);
-  }
-  for (let i=p.length-1;i>=0;i--) {
-    while (hi.length>=2 && cross(hi[hi.length-2],hi[hi.length-1],p[i])<=0) hi.pop();
-    hi.push(p[i]);
-  }
-  hi.pop(); lo.pop();
-  return lo.concat(hi);
-}
-
 // ── BUILDING CACHE ──────────────────────────────────────────────────
 let buildingCache = [];
 
 function updateBuildingCache() {
   if (!map.isStyleLoaded()) return;
   try {
-    // Query from both composite source layers
-    const features = map.querySourceFeatures('composite', { sourceLayer: 'building' });
+    let features = [];
+    if (map.getLayer('3d-buildings')) {
+      features = map.queryRenderedFeatures({ layers: ['3d-buildings'] });
+    }
+    if (!features.length) {
+      features = map.querySourceFeatures('composite', { sourceLayer: 'building' });
+    }
+    
     const seen = new Set();
     buildingCache = [];
     for (const f of features) {
-      if (!f.properties || !f.properties.height) continue;
+      if (!f.properties) continue;
+      const h = f.properties.height || f.properties.render_height;
+      if (!h || h < 2) continue;
       const key = f.id != null ? String(f.id) : JSON.stringify(f.geometry.coordinates[0][0]);
       if (seen.has(key)) continue;
       seen.add(key);
@@ -229,31 +219,31 @@ function updateBuildingCache() {
       if (geom.type === 'Polygon') ring = geom.coordinates[0];
       else if (geom.type === 'MultiPolygon') ring = geom.coordinates[0][0];
       else continue;
-      buildingCache.push({ h: f.properties.height || 5, ring });
+      buildingCache.push({ h: parseFloat(h), ring });
     }
-  } catch(e) {}
+  } catch(e) { console.error('cache error', e); }
 }
 
 map.on('moveend', updateBuildingCache);
 map.on('zoomend', updateBuildingCache);
 map.on('idle', updateBuildingCache);
 
-// ── SHADOW ENGINE ───────────────────────────────────────────────────
+// ── SHADOW ENGINE: POLYGON LOFTING (Précision parfaite des arêtes) ──
 let lastShadowTime = 0;
 
 function computeAndDrawShadows(force) {
   const now = performance.now();
-  if (!force && now - lastShadowTime < 32) return;
+  if (!force && now - lastShadowTime < 32) return; // Throttling fluide
   lastShadowTime = now;
 
   const src = map.getSource('shadows');
   if (!src || !map.isStyleLoaded()) return;
-
+  
   const d = new Date();
   d.setHours(Math.floor(renderedMins/60), Math.floor(renderedMins%60), 0, 0);
   const pos = SunCalc.getPosition(d, lat, lng);
   const alt = pos.altitude;
-  const az  = pos.azimuth; // SunCalc: 0=S, π/2=W, π=N, 3π/2=E (clockwise from south)
+  const az  = pos.azimuth; 
 
   if (alt <= 0.015) {
     src.setData({ type:'FeatureCollection', features:[] });
@@ -265,48 +255,54 @@ function computeAndDrawShadows(force) {
   const mPerDegLat = 111320;
   const mPerDegLng = 111320 * Math.cos(latRad);
 
-  // SunCalc az=0 → sun is DUE SOUTH → shadow falls DUE NORTH → dLat > 0
-  // sin(0)=0, cos(0)=1 → dLng=0, dLat=+h → ✓ north
-  // SunCalc az=π/2 → sun is DUE WEST → shadow falls DUE EAST → dLng > 0
-  // sin(π/2)=1, cos(π/2)=0 → dLng=+h, dLat=0 → ✓ east
-  // SunCalc az=π → sun is DUE NORTH → shadow falls DUE SOUTH → dLat < 0
-  // sin(π)=0, cos(π)=-1 → dLng=0, dLat=-h → ✓ south
-  // Formula confirmed:
   const sinAz = Math.sin(az);
   const cosAz = Math.cos(az);
   const features = [];
 
   for (const b of buildingCache) {
-    const ring = b.ring;
-    if (!ring || ring.length < 3) continue;
     const shadowLen = b.h * shadowFactor;
     const dLng = (shadowLen * sinAz) / mPerDegLng;
     const dLat = (shadowLen * cosAz) / mPerDegLat;
 
-    // Convex hull of footprint + offset footprint
-    // This is mathematically correct for casting ground shadows
-    const allPts = [];
-    for (const pt of ring) {
-      allPts.push([pt[0], pt[1]]);
-      allPts.push([pt[0] + dLng, pt[1] + dLat]);
+    const baseRing = b.ring;
+    if (!baseRing || baseRing.length < 3) continue;
+
+    // Calcul de l'empreinte décalée
+    const offsetRing = baseRing.map(pt => [pt[0] + dLng, pt[1] + dLat]);
+
+    // 1. On ajoute l'empreinte décalée (la "tête" de l'ombre au sol)
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [offsetRing] }
+    });
+
+    // 2. On "loft" (relie) chaque segment du bâtiment d'origine à son jumeau décalé
+    for (let i = 0; i < baseRing.length - 1; i++) {
+      const p1 = baseRing[i];
+      const p2 = baseRing[i + 1];
+      const o1 = offsetRing[i];
+      const o2 = offsetRing[i + 1];
+
+      features.push({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[[p1[0], p1[1]], [p2[0], p2[1]], [o2[0], o2[1]], [o1[0], o1[1]], [p1[0], p1[1]]]]
+        }
+      });
     }
-    const hull = convexHull(allPts);
-    if (hull.length < 3) continue;
-    hull.push(hull[0]);
-    features.push({ type:'Feature', geometry:{ type:'Polygon', coordinates:[hull] } });
   }
 
   src.setData({ type:'FeatureCollection', features });
 }
 
-// ── ATMOSPHERE / MAPBOX LIGHTS ──────────────────────────────────────
+// ── ATMOSPHERE / MAPBOX LIGHTS (Pour éclairer les murs 3D) ──────────
 function updateSunLightAt(m) {
   if (!map.isStyleLoaded()) return;
   const d=new Date(); d.setHours(Math.floor(m/60),Math.floor(m%60),0,0);
   const pos=SunCalc.getPosition(d,lat,lng);
   const alt=toDeg(pos.altitude), az=toDeg(pos.azimuth);
-  // Mapbox directional: azimuth from north clockwise
-  // SunCalc: 0=south → Mapbox = az + 180
+  
   const mapboxAz = (az + 180 + 360) % 360;
   const mapboxPolar = Math.max(1, Math.min(89, 90 - alt));
   let color='#fff8f0', intensity=0.85;
@@ -321,10 +317,10 @@ function updateSunLightAt(m) {
   } catch(e) {}
 }
 
-// ── STYLE LOAD ──────────────────────────────────────────────────────
+// ── STYLE LOAD ET BÂTIMENTS ─────────────────────────────────────────
 map.on('style.load', async () => {
 
-  // Find first label layer to insert below text
+  // Trouve la couche de texte pour garder les noms de rue et icônes au-dessus
   const layers = map.getStyle().layers;
   let labelLayerId;
   for (const layer of layers) {
@@ -334,14 +330,14 @@ map.on('style.load', async () => {
     }
   }
 
-  // Shadow fill layer
+  // Couche des ombres au sol
   map.addSource('shadows', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
   map.addLayer({
     id: 'shadows-layer', type: 'fill', source: 'shadows',
     paint: { 'fill-color':'#0f172a', 'fill-opacity':0.38, 'fill-antialias':true }
-  }, labelLayerId);
+  }, labelLayerId); // Inséré SOUS les textes
 
-  // Add 3D buildings on top of light-v11
+  // Bâtiments 3D
   if (!map.getLayer('3d-buildings')) {
     map.addLayer({
       id: '3d-buildings',
@@ -356,7 +352,7 @@ map.on('style.load', async () => {
         'fill-extrusion-base': ['get', 'min_height'],
         'fill-extrusion-opacity': 0.85,
       }
-    }, labelLayerId);
+    }, labelLayerId); // Inséré SOUS les textes
   }
 
   updateSliderUI();
@@ -365,11 +361,11 @@ map.on('style.load', async () => {
   VENUES = await loadVenues();
   addVenueMarkers();
   updateZoomState();
-  // Initial cache build
+  
   setTimeout(updateBuildingCache, 1000);
 });
 
-// ── ANIMATION LOOP ──────────────────────────────────────────────────
+// ── ANIMATION LOOP (Lissage) ────────────────────────────────────────
 let targetMins = mins, renderedMins = mins, rafId = null;
 
 function animLoop() {
@@ -383,14 +379,14 @@ function animLoop() {
     if (isFarZoom) drawShadowOverlay();
   } else {
     renderedMins = targetMins;
-    computeAndDrawShadows(true); // precise at rest
+    if (map.isStyleLoaded()) computeAndDrawShadows(true); 
   }
   rafId = requestAnimationFrame(animLoop);
 }
 function startAnimLoop() { if (rafId) return; rafId = requestAnimationFrame(animLoop); }
 function go() { updateStatus(); updateVenuePins(); targetMins = mins; }
 
-// ── ZOOM STATE ──────────────────────────────────────────────────────
+// ── ZOOM STATE ET OVERLAY GLOBA ─────────────────────────────────────
 function updateZoomState() {
   isFarZoom = map.getZoom() < ZOOM_THRESHOLD;
   const hint = document.getElementById('zoomHint');
@@ -401,7 +397,6 @@ function updateZoomState() {
 map.on('zoom', updateZoomState);
 map.on('zoomend', updateZoomState);
 
-// ── OVERLAY CANVAS (far zoom) ───────────────────────────────────────
 const overlayCanvas = document.getElementById('shadowOverlay');
 const overlayCtx = overlayCanvas.getContext('2d');
 function resizeOverlay() { overlayCanvas.width=window.innerWidth; overlayCanvas.height=window.innerHeight; }
@@ -430,7 +425,7 @@ function drawShadowOverlay() {
   overlayCtx.fillStyle=sg; overlayCtx.fillRect(0,0,W,H);
 }
 
-// ── SLIDER ──────────────────────────────────────────────────────────
+// ── UI DU SLIDER ────────────────────────────────────────────────────
 const track = document.getElementById('sliderTrack');
 const thumb = document.getElementById('sliderThumb');
 
@@ -457,7 +452,7 @@ function updateStatus() {
   document.getElementById('timeTxt').textContent = String(~~(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
 }
 
-// ── SEARCH ──────────────────────────────────────────────────────────
+// ── RECHERCHE ET AUTOCOMPLÉTION ─────────────────────────────────────
 let acTimeout, toastTmt, searchMarker=null;
 const si=document.getElementById('searchInput'), acList=document.getElementById('ac-list'), spn=document.getElementById('spinner'), sico=document.querySelector('.s-icon');
 
@@ -530,7 +525,7 @@ async function trackClick(venueId, clickType) {
 
 setInterval(()=>{ const n=new Date(),lm=n.getHours()*60+n.getMinutes(); if(!dragging&&Math.abs(lm-mins)<=1){mins=lm;updateSliderUI();go();} },60000);
 
-// ── VENUES ──────────────────────────────────────────────────────────
+// ── VENUES ET PINS ──────────────────────────────────────────────────
 let VENUES=[], currentVenue=null;
 const venueMarkers={};
 
