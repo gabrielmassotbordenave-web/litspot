@@ -414,6 +414,27 @@ html, body {
   letter-spacing: 0.04em;
   line-height: 1;
   margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hint-pin {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.hint-pin.sun {
+  background: #FFB800;
+  box-shadow: 0 0 0 2px rgba(255,184,0,0.3);
+}
+.hint-pin.shade {
+  background: #6b88b5;
+}
+.hint-sep {
+  color: rgba(255,245,230,0.3);
+  font-weight: 300;
 }
 .hint-divider {
   width: 100%;
@@ -422,12 +443,12 @@ html, body {
   margin-bottom: 9px;
 }
 .hint-invite {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 16px;
-  font-style: italic;
-  font-weight: 600;
-  color: #FFB800;
-  letter-spacing: 0.01em;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 400;
+  color: rgba(255,184,0,0.85);
+  letter-spacing: 0.04em;
   line-height: 1;
 }
 
@@ -521,7 +542,11 @@ html, body {
 </div>
 
 <div id="zoomHint">
-  <div class="hint-legend" id="hintLegend">🟡 au soleil &nbsp;·&nbsp; 🔵 à l'ombre</div>
+  <div class="hint-legend" id="hintLegend">
+    <span class="hint-pin sun"></span>au soleil
+    <span class="hint-sep">·</span>
+    <span class="hint-pin shade"></span>à l'ombre
+  </div>
   <div class="hint-divider"></div>
   <div class="hint-invite" id="hintInvite">Zoomez et explorez le soleil heure par heure</div>
 </div>
@@ -533,7 +558,8 @@ html, body {
 const i18n = {
   fr: {
     searchPlaceholder: 'Bar, restaurant, adresse…',
-    hintLegend: "🟡 au soleil · 🔵 à l'ombre",
+    hintLegendSun: 'au soleil',
+    hintLegendShade: 'à l\'ombre',
     hintInvite: 'Zoomez et explorez le soleil heure par heure',
     inSun: '☀️ En plein soleil',
     inShade: "🌑 À l'ombre",
@@ -548,7 +574,8 @@ const i18n = {
   },
   en: {
     searchPlaceholder: 'Bar, restaurant, address…',
-    hintLegend: '🟡 in the sun · 🔵 in the shade',
+    hintLegendSun: 'in the sun',
+    hintLegendShade: 'in the shade',
     hintInvite: 'Zoom in and explore sunlight hour by hour',
     inSun: '☀️ In the sun',
     inShade: '🌑 In the shade',
@@ -578,10 +605,17 @@ function applyLang() {
   // Search placeholder
   document.getElementById('searchInput').placeholder = t('searchPlaceholder');
   // Zoom hint — two lines
-  const hintLegend = document.getElementById('hintLegend');
   const hintInvite = document.getElementById('hintInvite');
-  if (hintLegend) hintLegend.textContent = t('hintLegend');
   if (hintInvite) hintInvite.textContent = t('hintInvite');
+  // Legend pins are HTML — just update text nodes around the spans
+  const hintLegend = document.getElementById('hintLegend');
+  if (hintLegend) {
+    hintLegend.innerHTML = `
+      <span class="hint-pin sun"></span>${t('hintLegendSun')}
+      <span class="hint-sep">·</span>
+      <span class="hint-pin shade"></span>${t('hintLegendShade')}
+    `;
+  }
   // Sun schedule title
   const schedTitle = document.querySelector('.sun-schedule-title');
   if (schedTitle) schedTitle.textContent = t('sunToday');
