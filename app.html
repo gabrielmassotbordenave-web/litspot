@@ -384,22 +384,52 @@ html, body {
 
 /* ── ZOOM HINT ── */
 #zoomHint {
-  position: fixed; bottom: 32px; left: 50%;
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
   transform: translateX(-50%);
   z-index: 200;
-  background: rgba(28,20,16,0.88);
-  border: 1px solid rgba(255,184,0,0.25);
-  border-radius: 50px;
-  padding: 10px 22px;
-  font-size: 13px;
-  color: rgba(255,245,230,0.9);
+  background: rgba(22,14,10,0.90);
+  border: 1px solid rgba(255,184,0,0.18);
+  border-radius: 20px;
+  padding: 14px 24px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.4s;
+  transition: opacity 0.5s ease;
   white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
 #zoomHint.visible { opacity: 1; }
-#zoomHint em { color: #FFB800; font-style: normal; font-weight: 600; }
+.hint-legend {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,245,230,0.90);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  margin-bottom: 9px;
+}
+.hint-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin-bottom: 9px;
+}
+.hint-invite {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px;
+  font-style: italic;
+  font-weight: 600;
+  color: #FFB800;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
 
 /* ── LANG TOGGLE ── */
 .lang-toggle {
@@ -490,7 +520,11 @@ html, body {
   </div>
 </div>
 
-<div id="zoomHint">Approchez et jouez avec les <em>ombres</em> ☀️</div>
+<div id="zoomHint">
+  <div class="hint-legend" id="hintLegend">🟡 au soleil &nbsp;·&nbsp; 🔵 à l'ombre</div>
+  <div class="hint-divider"></div>
+  <div class="hint-invite" id="hintInvite">Zoomez et explorez le soleil heure par heure</div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -499,7 +533,8 @@ html, body {
 const i18n = {
   fr: {
     searchPlaceholder: 'Bar, restaurant, adresse…',
-    zoomHint: 'Approchez et jouez avec les <em>ombres</em> ☀️',
+    hintLegend: "🟡 au soleil · 🔵 à l'ombre",
+    hintInvite: 'Zoomez et explorez le soleil heure par heure',
     inSun: '☀️ En plein soleil',
     inShade: "🌑 À l'ombre",
     sunToday: "☀️ Soleil aujourd'hui",
@@ -513,7 +548,8 @@ const i18n = {
   },
   en: {
     searchPlaceholder: 'Bar, restaurant, address…',
-    zoomHint: 'Get closer and play with the <em>shadows</em> ☀️',
+    hintLegend: '🟡 in the sun · 🔵 in the shade',
+    hintInvite: 'Zoom in and explore sunlight hour by hour',
     inSun: '☀️ In the sun',
     inShade: '🌑 In the shade',
     sunToday: '☀️ Sun today',
@@ -541,8 +577,11 @@ function setLang(l) {
 function applyLang() {
   // Search placeholder
   document.getElementById('searchInput').placeholder = t('searchPlaceholder');
-  // Zoom hint (contains HTML)
-  document.getElementById('zoomHint').innerHTML = t('zoomHint');
+  // Zoom hint — two lines
+  const hintLegend = document.getElementById('hintLegend');
+  const hintInvite = document.getElementById('hintInvite');
+  if (hintLegend) hintLegend.textContent = t('hintLegend');
+  if (hintInvite) hintInvite.textContent = t('hintInvite');
   // Sun schedule title
   const schedTitle = document.querySelector('.sun-schedule-title');
   if (schedTitle) schedTitle.textContent = t('sunToday');
@@ -832,14 +871,10 @@ const spn   = document.getElementById('spinner');
 const sico  = document.querySelector('.s-icon');
 
 si.addEventListener('focus', () => {
-  document.querySelector('.time-pill').style.opacity = '0';
-  document.querySelector('.time-pill').style.pointerEvents = 'none';
+  document.querySelector('.time-pill').classList.add('pill-hidden');
 });
 si.addEventListener('blur', () => {
-  setTimeout(() => {
-    document.querySelector('.time-pill').style.opacity = '1';
-    document.querySelector('.time-pill').style.pointerEvents = '';
-  }, 200);
+  setTimeout(() => updateZoomMode(), 200);
 });
 si.addEventListener('input', () => {
   clearTimeout(acTimeout);
@@ -1026,8 +1061,8 @@ function closeVenueCard() {
   card.classList.remove('visible');
   document.getElementById('cardBackdrop').classList.remove('visible');
   currentVenue = null;
-  document.querySelector('.time-pill').style.opacity = '1';
-  document.querySelector('.time-pill').style.pointerEvents = '';
+  // Let updateZoomMode decide pill visibility based on current zoom
+  updateZoomMode();
 }
 
 function openVenueCard(venue) {
@@ -1035,11 +1070,11 @@ function openVenueCard(venue) {
   updateVenueCard(venue);
   document.getElementById('venueCard').classList.add('visible');
   document.getElementById('cardBackdrop').classList.add('visible');
-  document.querySelector('.time-pill').style.opacity = '0';
-  document.querySelector('.time-pill').style.pointerEvents = 'none';
+  // Fly to venue but never zoom out below shadow threshold
+  const targetZoom = Math.max(map.getZoom(), SHADOW_ZOOM);
   map.flyTo({
     center: [venue.lng, venue.lat],
-    zoom: 16,
+    zoom: targetZoom,
     duration: 800,
     offset: [0, -120],
     essential: true,
