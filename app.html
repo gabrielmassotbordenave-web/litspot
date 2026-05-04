@@ -180,7 +180,12 @@ html, body {
   gap: 8px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
   width: 56px;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.time-pill.pill-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(-8px);
 }
 .pill-time {
   font-family: 'Cormorant Garamond', serif;
@@ -620,6 +625,25 @@ function updateStatus() {
   document.getElementById('timeTxt').textContent = h + ':' + m;
 }
 
+// ── ZOOM THRESHOLD
+const SHADOW_ZOOM = 18; // below this: slider hidden, setLights paused during zoom
+let zoomPaused = false;
+let zoomPauseTimeout = null;
+
+function isDeepZoom() { return map.getZoom() >= SHADOW_ZOOM; }
+
+function updateZoomMode() {
+  const pill = document.querySelector('.time-pill');
+  const hint = document.getElementById('zoomHint');
+  if (isDeepZoom()) {
+    pill.classList.remove('pill-hidden');
+    hint.classList.remove('visible');
+  } else {
+    pill.classList.add('pill-hidden');
+    hint.classList.add('visible');
+  }
+}
+
 // ── ANIMATION LOOP
 let targetMins = mins;
 let renderedMins = mins;
@@ -628,17 +652,20 @@ let frameCount = 0;
 
 function animLoop() {
   frameCount++;
-  const diff = targetMins - renderedMins;
 
-  if (Math.abs(diff) > 0.02) {
-    renderedMins += diff * 0.15;
-    if (map.isStyleLoaded()) {
-      try { updateSunLightAt(renderedMins); } catch(e) {}
-    }
-  } else {
-    renderedMins = targetMins;
-    if (frameCount % 30 === 0 && map.isStyleLoaded()) {
-      try { updateSunLightAt(renderedMins); } catch(e) {}
+  // Skip setLights entirely while zoom is transitioning
+  if (!zoomPaused) {
+    const diff = targetMins - renderedMins;
+    if (Math.abs(diff) > 0.02) {
+      renderedMins += diff * 0.15;
+      if (map.isStyleLoaded()) {
+        try { updateSunLightAt(renderedMins); } catch(e) {}
+      }
+    } else {
+      renderedMins = targetMins;
+      if (frameCount % 30 === 0 && map.isStyleLoaded()) {
+        try { updateSunLightAt(renderedMins); } catch(e) {}
+      }
     }
   }
 
@@ -667,15 +694,23 @@ map.on('style.load', async () => {
   startAnimLoop();
   VENUES = await loadVenues();
   addVenueMarkers();
-  checkZoom();
+  updateZoomMode();
 });
 
-function checkZoom() {
-  const hint = document.getElementById('zoomHint');
-  if (map.getZoom() < 14.5) hint.classList.add('visible');
-  else hint.classList.remove('visible');
-}
-map.on('zoom', checkZoom);
+// Pause setLights during zoom transitions to prevent freeze
+map.on('zoomstart', () => {
+  zoomPaused = true;
+  clearTimeout(zoomPauseTimeout);
+});
+map.on('zoomend', () => {
+  zoomPauseTimeout = setTimeout(() => {
+    zoomPaused = false;
+    if (map.isStyleLoaded()) {
+      try { updateSunLightAt(renderedMins); } catch(e) {}
+    }
+  }, 350);
+  updateZoomMode();
+});
 
 // ── GEOLOC
 document.getElementById('geoBtn').addEventListener('click', () => {
