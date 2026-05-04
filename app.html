@@ -703,7 +703,7 @@ function applyLang() {
   // Venue card status (if open)
   if (currentVenue) updateVenueCard(currentVenue);
   // Mapbox search language
-  currentSearchLang = l;
+  currentSearchLang = lang;
   // Refresh weather text if pill is visible
   if (lastWeatherId !== null) showWeatherPill(lastWeatherId, lastTempC);
 }
