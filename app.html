@@ -705,7 +705,7 @@ function applyLang() {
   // Mapbox search language
   currentSearchLang = l;
   // Refresh weather text if pill is visible
-  if (lastWeatherId !== null) showWeatherPill(lastWeatherId);
+  if (lastWeatherId !== null) showWeatherPill(lastWeatherId, lastTempC);
 }
 
 let currentSearchLang = 'fr';
@@ -713,6 +713,7 @@ let currentSearchLang = 'fr';
 // ── WEATHER
 const OWM_KEY = '0908304bf991ba0d5ce4ce41561b69b7'; // free OpenWeatherMap key
 let lastWeatherId = null;
+let lastTempC = null;
 
 function getWeatherCondition(id) {
   // OpenWeatherMap weather condition codes
@@ -740,31 +741,40 @@ function getWeatherLabel(condition) {
   }[condition];
 }
 
-function showWeatherPill(weatherId) {
+function showWeatherPill(weatherId, tempC) {
   lastWeatherId = weatherId;
+  lastTempC = tempC;
   const condition = getWeatherCondition(weatherId);
-  if (condition === 'clear') {
-    document.getElementById('weatherPill').classList.remove('visible');
-    return;
-  }
-  const label = getWeatherLabel(condition);
   const emoji = getWeatherEmoji(condition);
+  const tempStr = tempC !== null ? Math.round(tempC) + '°C' : '';
+
   document.getElementById('weatherIcon').textContent = emoji;
-  document.getElementById('weatherText').innerHTML =
-    '<strong>' + label + '</strong> · ' + t('weatherPotential');
+
+  if (condition === 'clear') {
+    // Sunny: just temp, no extra phrase
+    document.getElementById('weatherText').textContent = tempStr;
+  } else {
+    // Bad weather: temp + explanatory phrase
+    const label = getWeatherLabel(condition);
+    document.getElementById('weatherText').innerHTML =
+      tempStr
+        + ' <span style="opacity:0.45;margin:0 3px">·</span>'
+        + t('weatherPotential');
+  }
+
   document.getElementById('weatherPill').classList.add('visible');
 }
 
 async function fetchWeather() {
   try {
-    // Use Montreal coords as default; updates if user geolocates
-    const wlat = userLat || 45.5088;
-    const wlng = userLng || -73.5878;
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${wlat}&lon=${wlng}&appid=${OWM_KEY}`;
+    const wlat = userLat || 45.5217;
+    const wlng = userLng || -73.5800;
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${wlat}&lon=${wlng}&appid=${OWM_KEY}&units=metric`;
     const res = await fetch(url);
     const data = await res.json();
     const id = data.weather?.[0]?.id;
-    if (id !== undefined) showWeatherPill(id);
+    const tempC = data.main?.temp ?? null;
+    if (id !== undefined) showWeatherPill(id, tempC);
   } catch(e) {
     // Silently fail — weather is non-critical
   }
@@ -805,7 +815,7 @@ async function loadVenues() {
 
 mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
 
-let lat = 45.5088, lng = -73.5878;
+let lat = 45.5217, lng = -73.5800; // Plateau — avenue du Mont-Royal
 let userLat = null, userLng = null;
 let mins = new Date().getHours() * 60 + new Date().getMinutes();
 let toastTmt, acTimeout, dragging = false;
@@ -815,7 +825,7 @@ const map = new mapboxgl.Map({
   container: 'map',
   style: 'mapbox://styles/mapbox/standard',
   center: [lng, lat],
-  zoom: 16,
+  zoom: 15,
   pitch: 45,
   antialias: true,
 });
@@ -824,7 +834,13 @@ if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(p => {
     userLat = p.coords.latitude;
     userLng = p.coords.longitude;
-  }, () => {});
+    lat = userLat; lng = userLng;
+    // Fly to user position as soon as we have it
+    map.flyTo({ center: [lng, lat], zoom: 16, duration: 1200 });
+    go();
+  }, () => {
+    // Permission denied — stay on Plateau default
+  });
 }
 map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
 
