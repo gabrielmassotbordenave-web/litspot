@@ -998,13 +998,14 @@ function updateZoomMode() {
 // ── ANIMATION LOOP
 let targetMins = mins;
 let renderedMins = mins;
+let lastAppliedMins = -1; // track last value sent to setLights
 let rafId = null;
 let frameCount = 0;
 
 function animLoop() {
   frameCount++;
 
-  // Interpolation always runs — keeps renderedMins smooth regardless of zoom
+  // Interpolation always runs — smooth regardless of zoom
   const diff = targetMins - renderedMins;
   if (Math.abs(diff) > 0.02) {
     renderedMins += diff * 0.15;
@@ -1012,12 +1013,18 @@ function animLoop() {
     renderedMins = targetMins;
   }
 
-  // setLights only fires when zoom is sufficient and not transitioning
-  if (!zoomPaused && isDeepZoom() && map.isStyleLoaded()) {
-    try { updateSunLightAt(renderedMins); } catch(e) {}
-  } else if (frameCount % 30 === 0 && !zoomPaused && isDeepZoom() && map.isStyleLoaded()) {
-    // Periodic refresh to recover from Mapbox style reloads
-    try { updateSunLightAt(renderedMins); } catch(e) {}
+  // setLights: only when zoomed in, not paused, style ready,
+  // AND value has actually changed by at least 0.1 min (~6 seconds of sun movement)
+  const canUpdate = !zoomPaused && isDeepZoom() && map.isStyleLoaded();
+  const hasChanged = Math.abs(renderedMins - lastAppliedMins) > 0.1;
+  // Also do a periodic refresh every ~2s to recover from Mapbox style reloads
+  const periodicRefresh = canUpdate && frameCount % 120 === 0;
+
+  if (canUpdate && (hasChanged || periodicRefresh)) {
+    try {
+      updateSunLightAt(renderedMins);
+      lastAppliedMins = renderedMins;
+    } catch(e) {}
   }
 
   rafId = requestAnimationFrame(animLoop);
@@ -1038,7 +1045,7 @@ function go() {
 map.on('style.load', async () => {
   try {
     map.setConfigProperty('basemap', 'show3dObjects', true);
-    map.setConfigProperty('basemap', 'lightPreset', 'day');
+    // Do NOT set lightPreset — it conflicts with our custom setLights
   } catch(e) {}
   updateSliderUI();
   go();
@@ -1060,9 +1067,7 @@ map.on('zoomstart', () => {
 map.on('zoomend', () => {
   zoomPauseTimeout = setTimeout(() => {
     zoomPaused = false;
-    if (map.isStyleLoaded()) {
-      try { updateSunLightAt(renderedMins); } catch(e) {}
-    }
+    lastAppliedMins = -1; // force reapply after zoom settles
   }, 350);
   updateZoomMode();
 });
