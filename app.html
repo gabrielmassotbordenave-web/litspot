@@ -400,6 +400,37 @@ html, body {
 }
 #zoomHint.visible { opacity: 1; }
 #zoomHint em { color: #FFB800; font-style: normal; font-weight: 600; }
+
+/* ── LANG TOGGLE ── */
+.lang-toggle {
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.97);
+  border: 1.5px solid rgba(0,0,0,0.08);
+  border-radius: 10px;
+  padding: 0;
+  display: flex;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  height: 52px;
+  align-self: center;
+}
+.lang-btn {
+  padding: 0 12px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: rgba(0,0,0,0.35);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.lang-btn.active {
+  background: #E8890C;
+  color: #fff;
+}
 </style>
 </head>
 <body>
@@ -409,12 +440,16 @@ html, body {
 <!-- Search -->
 <div class="top-bar">
   <div class="search-wrap">
-    <input id="searchInput" type="text" placeholder="Bar, restaurant, address…" autocomplete="off" spellcheck="false">
+    <input id="searchInput" type="text" placeholder="Bar, restaurant, adresse…" autocomplete="off" spellcheck="false">
     <div class="s-icon">🔍</div>
     <div id="spinner"></div>
     <div id="ac-list"></div>
   </div>
   <button class="geo-btn" id="geoBtn">🎯</button>
+  <div class="lang-toggle">
+    <button class="lang-btn active" id="btnFR" onclick="setLang('fr')">FR</button>
+    <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
+  </div>
 </div>
 
 <!-- Time pill -->
@@ -445,7 +480,7 @@ html, body {
   </div>
   <div class="venue-card-body">
     <div class="sun-schedule">
-      <div class="sun-schedule-title">☀️ Soleil aujourd'hui</div>
+      <div class="sun-schedule-title" id="sunSchedTitle">☀️ Soleil aujourd'hui</div>
       <div class="sun-slots" id="vcSlots"></div>
     </div>
     <div class="venue-cta">
@@ -455,10 +490,75 @@ html, body {
   </div>
 </div>
 
-<div id="zoomHint">☀️ &nbsp;Approchez pour voir les <em>ombres réelles</em></div>
+<div id="zoomHint">Approchez et jouez avec les <em>ombres</em> ☀️</div>
 <div id="toast"></div>
 
 <script>
+
+// ── I18N
+const i18n = {
+  fr: {
+    searchPlaceholder: 'Bar, restaurant, adresse…',
+    zoomHint: 'Approchez et jouez avec les <em>ombres</em> ☀️',
+    inSun: '☀️ En plein soleil',
+    inShade: '🌑 À l'ombre',
+    sunToday: '☀️ Soleil aujourd'hui',
+    directions: '🗺 Itinéraire',
+    reserve: 'Réserver',
+    locating: '📡 Localisation…',
+    locationFound: '🎯 Position trouvée !',
+    locationDenied: '❌ Accès refusé',
+    locationUpdated: '📍 Position mise à jour',
+    notSupported: 'Non supporté',
+  },
+  en: {
+    searchPlaceholder: 'Bar, restaurant, address…',
+    zoomHint: 'Get closer and play with the <em>shadows</em> ☀️',
+    inSun: '☀️ In the sun',
+    inShade: '🌑 In the shade',
+    sunToday: '☀️ Sun today',
+    directions: '🗺 Directions',
+    reserve: 'Book a table',
+    locating: '📡 Locating…',
+    locationFound: '🎯 Location found!',
+    locationDenied: '❌ Access denied',
+    locationUpdated: '📍 Location updated',
+    notSupported: 'Not supported',
+  }
+};
+
+let lang = 'fr';
+
+function t(key) { return i18n[lang][key] || i18n.fr[key]; }
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('btnFR').classList.toggle('active', l === 'fr');
+  document.getElementById('btnEN').classList.toggle('active', l === 'en');
+  applyLang();
+}
+
+function applyLang() {
+  // Search placeholder
+  document.getElementById('searchInput').placeholder = t('searchPlaceholder');
+  // Zoom hint (contains HTML)
+  document.getElementById('zoomHint').innerHTML = t('zoomHint');
+  // Sun schedule title
+  const schedTitle = document.querySelector('.sun-schedule-title');
+  if (schedTitle) schedTitle.textContent = t('sunToday');
+  // CTA buttons
+  const vcDir = document.getElementById('vcDir');
+  const vcRes = document.getElementById('vcRes');
+  if (vcDir) vcDir.textContent = t('directions');
+  if (vcRes) vcRes.textContent = t('reserve');
+  // Venue card status (if open)
+  if (currentVenue) updateVenueCard(currentVenue);
+  // Mapbox search language
+  currentSearchLang = l;
+}
+
+let currentSearchLang = 'fr';
+
 
 const SUPABASE_URL = 'https://dogontqbkihwircaldie.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ29udHFia2lod2lyY2FsZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTI3ODYsImV4cCI6MjA5Mjg2ODc4Nn0.5tvkp_zIEMZS8TM1PIYBuEJyBRIIvaTPzU3j9OTbMAA';
@@ -695,6 +795,7 @@ map.on('style.load', async () => {
   VENUES = await loadVenues();
   addVenueMarkers();
   updateZoomMode();
+  applyLang();
 });
 
 // Pause setLights during zoom transitions to prevent freeze
@@ -714,14 +815,14 @@ map.on('zoomend', () => {
 
 // ── GEOLOC
 document.getElementById('geoBtn').addEventListener('click', () => {
-  if (!navigator.geolocation) return showToast('Not supported');
-  showToast('📡 Localisation…');
+  if (!navigator.geolocation) return showToast(t('notSupported'));
+  showToast(t('locating'));
   navigator.geolocation.getCurrentPosition(p => {
     lat = p.coords.latitude; lng = p.coords.longitude;
     userLat = lat; userLng = lng;
     map.flyTo({ center: [lng, lat], zoom: 16, duration: 1200 });
-    go(); showToast('🎯 Position trouvée !');
-  }, () => showToast('❌ Accès refusé'));
+    go(); showToast(t('locationFound'));
+  }, () => showToast(t('locationDenied')));
 });
 
 // ── SEARCH
@@ -750,7 +851,7 @@ si.addEventListener('input', () => {
 async function fetchPlaces(q) {
   spn.style.display = 'block'; sico.style.display = 'none';
   try {
-    const url = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${mapboxgl.accessToken}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${userLng||lng},${userLat||lat}`;
+    const url = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${mapboxgl.accessToken}&session_token=litspot-session&language=${lang}&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${userLng||lng},${userLat||lat}`;
     const res = await fetch(url);
     const data = await res.json();
     renderAC(data.suggestions || []);
@@ -780,7 +881,7 @@ map.on('click', e => {
   const card = document.getElementById('venueCard');
   if (card.classList.contains('visible')) return;
   lng = e.lngLat.lng; lat = e.lngLat.lat;
-  showToast('📍 Position mise à jour');
+  showToast(t('locationUpdated'));
 });
 
 async function selectPlace(mapboxId, name) {
@@ -966,7 +1067,7 @@ function updateVenueCard(venue) {
   const statusTxt = document.getElementById('vcStatus');
   dot.className = 'status-dot ' + (inSun ? 'sun' : 'shade');
   statusTxt.className = 'venue-status-txt ' + (inSun ? 'sun' : 'shade');
-  statusTxt.textContent = inSun ? '☀️ En plein soleil' : '🌑 À l\'ombre';
+  statusTxt.textContent = inSun ? t('inSun') : t('inShade');
 
   const slots = getSunSlots(venue);
   const slotsEl = document.getElementById('vcSlots');
