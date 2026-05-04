@@ -767,8 +767,8 @@ function showWeatherPill(weatherId, tempC) {
 
 async function fetchWeather() {
   try {
-    const wlat = userLat || 45.5217;
-    const wlng = userLng || -73.5800;
+    const wlat = 45.5217;
+    const wlng = -73.5800; // Always Montreal
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${wlat}&lon=${wlng}&appid=${OWM_KEY}&units=metric`;
     const res = await fetch(url);
     const data = await res.json();
@@ -784,6 +784,25 @@ async function fetchWeather() {
 
 const SUPABASE_URL = 'https://dogontqbkihwircaldie.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ29udHFia2lod2lyY2FsZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTI3ODYsImV4cCI6MjA5Mjg2ODc4Nn0.5tvkp_zIEMZS8TM1PIYBuEJyBRIIvaTPzU3j9OTbMAA';
+
+// ── CLICK TRACKING
+async function trackClick(venueId, clickType) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/venue_clicks`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({ venue_id: venueId, click_type: clickType }),
+    });
+  } catch(e) {
+    // Silently fail — tracking is non-critical
+  }
+}
+
 
 async function loadVenues() {
   try {
@@ -834,10 +853,16 @@ if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(p => {
     userLat = p.coords.latitude;
     userLng = p.coords.longitude;
-    lat = userLat; lng = userLng;
-    // Fly to user position as soon as we have it
-    map.flyTo({ center: [lng, lat], zoom: 16, duration: 1200 });
-    go();
+    // Only fly to user if within ~50km of Montreal
+    const MTL_LAT = 45.5217, MTL_LNG = -73.5800;
+    const dLat = userLat - MTL_LAT, dLng = userLng - MTL_LNG;
+    const distKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111;
+    if (distKm <= 50) {
+      lat = userLat; lng = userLng;
+      map.flyTo({ center: [lng, lat], zoom: 16, duration: 1200 });
+      go();
+    }
+    // If outside Montreal area, keep Plateau default — just store coords for weather
   }, () => {
     // Permission denied — stay on Plateau default
   });
@@ -1254,6 +1279,7 @@ function closeVenueCard() {
 function openVenueCard(venue) {
   currentVenue = venue;
   updateVenueCard(venue);
+  trackClick(venue.id, 'card_view');
   document.getElementById('venueCard').classList.add('visible');
   document.getElementById('cardBackdrop').classList.add('visible');
   // Fly to venue but never zoom out below shadow threshold
@@ -1307,8 +1333,8 @@ function updateVenueCard(venue) {
     </div>
   `).join('');
 
-  document.getElementById('vcDir').onclick = () => window.open(venue.directionsUrl, '_blank');
-  document.getElementById('vcRes').onclick = () => window.open(venue.reserveUrl, '_blank');
+  document.getElementById('vcDir').onclick = () => { trackClick(venue.id, 'directions_click'); window.open(venue.directionsUrl, '_blank'); };
+  document.getElementById('vcRes').onclick = () => { trackClick(venue.id, 'reserve_click'); window.open(venue.reserveUrl, '_blank'); };
 }
 
 // Swipe to close
