@@ -12,7 +12,7 @@
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://litspot.app/">
 
-<!-- Open Graph (réseaux sociaux) -->
+<!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://litspot.app/">
 <meta property="og:title" content="LitSpot — Find Sunny Terraces Near You">
@@ -46,8 +46,10 @@
   ]
 }
 </script>
+
+<!-- FIX 1: Added Cormorant Garamond to font load (was missing, causing fallback serif) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Outfit:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js'></script>
 <link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet'>
 <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
@@ -63,7 +65,7 @@ html, body {
 }
 #map { position: absolute; inset: 0; }
 
-/* Mapbox controls — push above safe area */
+/* Mapbox controls */
 .mapboxgl-ctrl-group {
   background: rgba(255,255,255,0.92) !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
@@ -92,7 +94,7 @@ html, body {
   border-radius: 14px;
   padding: 14px 44px 14px 16px;
   font-family: 'Outfit', sans-serif;
-  font-size: 16px; /* 16px prevents iOS zoom on focus */
+  font-size: 16px;
   color: #1a1a2e;
   outline: none;
   box-shadow: 0 4px 20px rgba(0,0,0,0.12);
@@ -117,6 +119,12 @@ html, body {
 }
 @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
 @keyframes pinDrop { from { transform: translateY(-20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+/* FIX 2: Added pinGlow keyframes — was referenced in makePin() but never defined */
+@keyframes pinGlow {
+  0%, 100% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 4px rgba(255,184,0,0.3); }
+  50%       { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 12px rgba(255,184,0,0); }
+}
 
 #ac-list {
   position: absolute;
@@ -208,38 +216,12 @@ html, body {
   box-shadow: 0 0 0 3px rgba(232,137,12,0.25), 0 0 12px rgba(232,137,12,0.5);
 }
 
-
-
-/* ── VENUE PINS ── */
-.venue-pin {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px;
-  border: 3px solid #fff;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
-}
-.venue-pin.in-sun {
-  background: #FFB800;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 4px rgba(232,137,12,0.3);
-  animation: pinPulse 2s ease-in-out infinite;
-}
-.venue-pin.in-shade { background: #6b88b5; }
-@keyframes pinPulse {
-  0%,100% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 4px rgba(232,137,12,0.3); }
-  50% { box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 10px rgba(232,137,12,0); }
-}
-
-/* ── VENUE CARD — bottom sheet on mobile ── */
+/* ── VENUE CARD — bottom sheet ── */
 .venue-card {
   position: absolute;
   bottom: 0; left: 0; right: 0;
   z-index: 1000;
   background: #FFFFFF;
-  opacity: 1;
   border: 1px solid rgba(0,0,0,0.06);
   border-radius: 24px 24px 0 0;
   overflow: hidden;
@@ -254,7 +236,6 @@ html, body {
   pointer-events: all;
 }
 
-/* drag handle */
 .card-handle {
   width: 36px; height: 4px;
   background: rgba(0,0,0,0.12);
@@ -267,12 +248,10 @@ html, body {
   object-fit: cover;
   display: block;
 }
-.venue-card-photo-placeholder { display: none; }
 .venue-card-header {
   padding: 10px 20px 10px;
   border-bottom: 1px solid rgba(0,0,0,0.06);
 }
-/* When photo present, overlay name on image */
 .venue-card.has-photo .venue-card-header {
   position: relative;
   padding: 0;
@@ -287,6 +266,11 @@ html, body {
 .venue-card:not(.has-photo) .venue-card-header-inner {
   padding: 12px 20px 14px;
 }
+/* FIX 3: has-photo mode — name/type/status need light colours on dark overlay */
+.venue-card.has-photo .venue-name  { color: #FFFFFF; }
+.venue-card.has-photo .venue-type  { color: rgba(255,255,255,0.65); }
+.venue-card.has-photo .venue-status-txt.shade { color: rgba(255,255,255,0.7); }
+
 .venue-card-status {
   display: flex; align-items: center; gap: 8px;
   margin-bottom: 6px;
@@ -294,10 +278,10 @@ html, body {
 .status-dot {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
 }
-.status-dot.sun { background: #E8890C; box-shadow: 0 0 6px rgba(232,137,12,0.7); }
+.status-dot.sun   { background: #E8890C; box-shadow: 0 0 6px rgba(232,137,12,0.7); }
 .status-dot.shade { background: #b0a090; }
 .venue-status-txt { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
-.venue-status-txt.sun { color: #E8890C; }
+.venue-status-txt.sun   { color: #E8890C; }
 .venue-status-txt.shade { color: #8a7a6a; }
 .venue-name {
   font-family: 'Cormorant Garamond', serif;
@@ -316,13 +300,9 @@ html, body {
   text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; font-weight: 600;
 }
 .sun-slots { display: flex; flex-direction: column; gap: 10px; }
-.sun-slot { display: flex; flex-direction: column; gap: 6px; }
-.slot-times {
-  display: flex; justify-content: space-between; align-items: center;
-}
-.slot-time-label {
-  font-size: 13px; font-weight: 600; color: #E8890C;
-}
+.sun-slot  { display: flex; flex-direction: column; gap: 6px; }
+.slot-times { display: flex; justify-content: space-between; align-items: center; }
+.slot-time-label { font-size: 13px; font-weight: 600; color: #E8890C; }
 .slot-arrow { font-size: 11px; color: rgba(28,20,16,0.25); }
 .slot-bar-wrap {
   position: relative; height: 6px; border-radius: 3px;
@@ -355,8 +335,6 @@ html, body {
   background: #f5f0eb;
   border: 1.5px solid rgba(0,0,0,0.12);
   color: rgba(28,20,16,0.8);
-  font-family: 'Outfit', sans-serif;
-  font-weight: 600;
 }
 .btn-directions:active { background: #ece6df; }
 .btn-reserve { background: #E8890C; color: #0d1117; }
@@ -399,12 +377,7 @@ html, body {
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* Rotation hint */
-
-
-
-
-
+/* ── ZOOM HINT ── */
 #zoomHint {
   position: fixed; bottom: 32px; left: 50%;
   transform: translateX(-50%);
@@ -447,9 +420,35 @@ html, body {
     <div class="slider-fill" id="sliderFill"></div>
     <div class="slider-thumb" id="sliderThumb"></div>
   </div>
-
 </div>
 
+<!-- FIX 4: Venue card HTML — was completely absent from the body -->
+<div id="cardBackdrop"></div>
+<div class="venue-card" id="venueCard">
+  <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
+  <div class="card-handle"></div>
+  <div class="venue-card-header" id="vcHeader">
+    <img class="venue-card-photo" id="vcPhoto" src="" alt="" style="display:none">
+    <div class="venue-card-header-inner">
+      <div class="venue-card-status">
+        <div class="status-dot" id="vcDot"></div>
+        <span class="venue-status-txt" id="vcStatus"></span>
+      </div>
+      <div class="venue-name" id="vcName"></div>
+      <div class="venue-type" id="vcType"></div>
+    </div>
+  </div>
+  <div class="venue-card-body">
+    <div class="sun-schedule">
+      <div class="sun-schedule-title">☀️ Soleil aujourd'hui</div>
+      <div class="sun-slots" id="vcSlots"></div>
+    </div>
+    <div class="venue-cta">
+      <button class="btn-directions" id="vcDir">🗺 Itinéraire</button>
+      <button class="btn-reserve" id="vcRes">Réserver</button>
+    </div>
+  </div>
+</div>
 
 <div id="zoomHint">☀️ &nbsp;Approchez pour voir les <em>ombres réelles</em></div>
 <div id="toast"></div>
@@ -468,7 +467,6 @@ async function loadVenues() {
       }
     });
     const data = await res.json();
-    // Convert snake_case to camelCase to match existing code
     return data.map(v => ({
       id: v.id,
       name: v.name,
@@ -505,7 +503,6 @@ const map = new mapboxgl.Map({
   antialias: true,
 });
 
-// Auto-detect user position for better search results
 if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(p => {
     userLat = p.coords.latitude;
@@ -517,13 +514,10 @@ map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-ri
 // ── SOLAR
 function getDate() {
   const d = new Date();
-  d.setFullYear(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
   d.setHours(~~(mins/60), mins%60, 0, 0);
   return d;
 }
 function sunPos()   { return SunCalc.getPosition(getDate(), lat, lng); }
-function sunTimes() { return SunCalc.getTimes(new Date(), lat, lng); }
-function fmt(d)     { return (!d||isNaN(d)) ? '–' : d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}); }
 function toDeg(r)   { return r * 180 / Math.PI; }
 
 // ── SUN LIGHT
@@ -536,10 +530,6 @@ function updateSunLightAt(m) {
   const alt = toDeg(pos.altitude);
   const az  = toDeg(pos.azimuth);
 
-  // Mapbox Standard v3: use setConfigProperty for persistent lighting
-  // 'lightPreset' controls the overall look, 'show3dObjects' enables buildings+shadows
-  // Choose light preset based on sun altitude
-  // azimuthal: SunCalc 0=south → mapbox azimuthal from east CCW
   const mapboxAz = ((-90 - az) % 360 + 360) % 360;
   const polar    = Math.max(1, Math.min(90, 90 - alt));
 
@@ -570,18 +560,16 @@ function updateSunLightAt(m) {
   } catch(e) {}
 }
 
-function updateSunLight() { updateSunLightAt(mins); }
-
-// ── SLIDER (custom vertical — plus fiable que input[type=range] vertical)
+// ── SLIDER
 const track = document.getElementById('sliderTrack');
 const fill  = document.getElementById('sliderFill');
 const thumb = document.getElementById('sliderThumb');
 
 function updateSliderUI() {
-  const pct = mins / 1439; // 0=00h, 1=23h59
+  const pct = mins / 1439;
   const trackH = track.offsetHeight;
   const thumbH = thumb.offsetHeight;
-  const pos = (1 - pct) * (trackH - thumbH); // 0h en bas, 23h en haut
+  const pos = (1 - pct) * (trackH - thumbH);
   thumb.style.top = pos + 'px';
   fill.style.height = (pct * trackH) + 'px';
 }
@@ -605,7 +593,6 @@ document.addEventListener('mousemove', e => {
 });
 document.addEventListener('mouseup', () => { dragging = false; });
 
-// Touch
 track.addEventListener('touchstart', e => {
   dragging = true;
   mins = pxToMins(e.touches[0].clientY);
@@ -631,30 +618,25 @@ function updateStatus() {
   const h = String(~~(mins/60)).padStart(2,'0');
   const m = String(mins%60).padStart(2,'0');
   document.getElementById('timeTxt').textContent = h + ':' + m;
-
 }
 
-// ── ANIMATION LOOP ──────────────────────────────────────────────────
+// ── ANIMATION LOOP
 let targetMins = mins;
 let renderedMins = mins;
 let rafId = null;
-
-// Single persistent rAF loop — never stops, never gets stuck
 let frameCount = 0;
+
 function animLoop() {
   frameCount++;
   const diff = targetMins - renderedMins;
 
   if (Math.abs(diff) > 0.02) {
-    // Actively animating — update every frame
     renderedMins += diff * 0.15;
     if (map.isStyleLoaded()) {
       try { updateSunLightAt(renderedMins); } catch(e) {}
     }
   } else {
     renderedMins = targetMins;
-    // Not animating — but still re-apply every 60 frames (~1s)
-    // to recover from Mapbox style reloads that reset lights
     if (frameCount % 30 === 0 && map.isStyleLoaded()) {
       try { updateSunLightAt(renderedMins); } catch(e) {}
     }
@@ -663,9 +645,8 @@ function animLoop() {
   rafId = requestAnimationFrame(animLoop);
 }
 
-// Start the loop once — runs forever
 function startAnimLoop() {
-  if (rafId) return; // already running
+  if (rafId) return;
   rafId = requestAnimationFrame(animLoop);
 }
 
@@ -677,7 +658,6 @@ function go() {
 
 // ── MAP LOAD
 map.on('style.load', async () => {
-  // Set once — persists across zooms
   try {
     map.setConfigProperty('basemap', 'show3dObjects', true);
     map.setConfigProperty('basemap', 'lightPreset', 'day');
@@ -687,7 +667,6 @@ map.on('style.load', async () => {
   startAnimLoop();
   VENUES = await loadVenues();
   addVenueMarkers();
-  // Show zoom hint if needed
   checkZoom();
 });
 
@@ -698,25 +677,24 @@ function checkZoom() {
 }
 map.on('zoom', checkZoom);
 
-
 // ── GEOLOC
 document.getElementById('geoBtn').addEventListener('click', () => {
   if (!navigator.geolocation) return showToast('Not supported');
-  showToast('📡 Locating…');
+  showToast('📡 Localisation…');
   navigator.geolocation.getCurrentPosition(p => {
     lat = p.coords.latitude; lng = p.coords.longitude;
     userLat = lat; userLng = lng;
     map.flyTo({ center: [lng, lat], zoom: 16, duration: 1200 });
-    go(); showToast('🎯 Location found!');
-  }, () => showToast('❌ Access denied'));
+    go(); showToast('🎯 Position trouvée !');
+  }, () => showToast('❌ Accès refusé'));
 });
 
-
-
-
-
 // ── SEARCH
-const si=document.getElementById('searchInput'),acList=document.getElementById('ac-list'),spn=document.getElementById('spinner'),sico=document.querySelector('.s-icon');
+const si    = document.getElementById('searchInput');
+const acList = document.getElementById('ac-list');
+const spn   = document.getElementById('spinner');
+const sico  = document.querySelector('.s-icon');
+
 si.addEventListener('focus', () => {
   document.querySelector('.time-pill').style.opacity = '0';
   document.querySelector('.time-pill').style.pointerEvents = 'none';
@@ -727,72 +705,47 @@ si.addEventListener('blur', () => {
     document.querySelector('.time-pill').style.pointerEvents = '';
   }, 200);
 });
-si.addEventListener('input',()=>{
-  clearTimeout(acTimeout); const q=si.value.trim();
-  if(q.length<2){acList.style.display='none';return;}
-  acTimeout=setTimeout(()=>fetchPlaces(q),300);
+si.addEventListener('input', () => {
+  clearTimeout(acTimeout);
+  const q = si.value.trim();
+  if (q.length < 2) { acList.style.display = 'none'; return; }
+  acTimeout = setTimeout(() => fetchPlaces(q), 300);
 });
-async function fetchPlaces(q){
-  spn.style.display='block'; sico.style.display='none';
+
+async function fetchPlaces(q) {
+  spn.style.display = 'block'; sico.style.display = 'none';
   try {
-    // Mapbox Search Box API — built for POI (bars, restaurants, cafes...)
     const url = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(q)}&access_token=${mapboxgl.accessToken}&session_token=litspot-session&language=fr&limit=6&poi_category=bar,restaurant,cafe,pub,food,coffee&proximity=${userLng||lng},${userLat||lat}`;
     const res = await fetch(url);
     const data = await res.json();
     renderAC(data.suggestions || []);
-  } catch { acList.style.display='none'; }
-  finally { spn.style.display='none'; sico.style.display='block'; }
+  } catch { acList.style.display = 'none'; }
+  finally { spn.style.display = 'none'; sico.style.display = 'block'; }
 }
 
-// Search result marker
 let searchMarker = null;
 
-function showSearchPin(lngLat, name) {
-  // Remove previous pin
+function showSearchPin(lngLat) {
   if (searchMarker) { searchMarker.remove(); searchMarker = null; }
-
-  // Create a classic Google Maps style pin
   const el = document.createElement('div');
   el.innerHTML = `
-    <div style="
-      display:flex;flex-direction:column;align-items:center;
-      animation: pinDrop 0.3s cubic-bezier(0.34,1.56,0.64,1);
-    ">
-      <div style="
-        background:#e74c3c;
-        width:32px;height:32px;border-radius:50% 50% 50% 0;
-        transform:rotate(-45deg);
-        border:3px solid #fff;
-        box-shadow:0 2px 8px rgba(0,0,0,0.3);
-        display:flex;align-items:center;justify-content:center;
-      ">
-        <div style="
-          width:10px;height:10px;background:#fff;
-          border-radius:50%;transform:rotate(45deg);
-        "></div>
+    <div style="display:flex;flex-direction:column;align-items:center;animation:pinDrop 0.3s cubic-bezier(0.34,1.56,0.64,1);">
+      <div style="background:#e74c3c;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
+        <div style="width:10px;height:10px;background:#fff;border-radius:50%;transform:rotate(45deg);"></div>
       </div>
-      <div style="
-        width:4px;height:4px;background:rgba(0,0,0,0.2);
-        border-radius:50%;margin-top:2px;
-        filter:blur(2px);
-      "></div>
+      <div style="width:4px;height:4px;background:rgba(0,0,0,0.2);border-radius:50%;margin-top:2px;filter:blur(2px);"></div>
     </div>`;
-  el.style.cssText = 'cursor:default;';
-
   searchMarker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
     .setLngLat(lngLat)
     .addTo(map);
 }
 
-// Remove search pin on map click
 map.on('click', e => {
-  // Remove search pin
   if (searchMarker) { searchMarker.remove(); searchMarker = null; }
-  // Don't update position if venue card is open
   const card = document.getElementById('venueCard');
   if (card.classList.contains('visible')) return;
   lng = e.lngLat.lng; lat = e.lngLat.lat;
-  showToast('📍 Location updated');
+  showToast('📍 Position mise à jour');
 });
 
 async function selectPlace(mapboxId, name) {
@@ -807,17 +760,17 @@ async function selectPlace(mapboxId, name) {
     si.value = name;
     acList.style.display = 'none';
     map.flyTo({ center: [lng, lat], zoom: 17, duration: 1000 });
-    // Show pin after flyTo lands
-    setTimeout(() => showSearchPin([lng, lat], name), 900);
+    setTimeout(() => showSearchPin([lng, lat]), 900);
     go();
   } catch {}
 }
 
 function renderAC(suggestions) {
-  if (!suggestions.length) { acList.style.display='none'; return; }
+  if (!suggestions.length) { acList.style.display = 'none'; return; }
   acList.innerHTML = '';
   suggestions.forEach(s => {
-    const item = document.createElement('div'); item.className = 'ac-item';
+    const item = document.createElement('div');
+    item.className = 'ac-item';
     const name = s.name || s.name_preferred || '';
     const addr = s.place_formatted || s.full_address || '';
     item.innerHTML = `<div class="ac-name">${name}</div><div class="ac-addr">${addr}</div>`;
@@ -826,36 +779,39 @@ function renderAC(suggestions) {
   });
   acList.style.display = 'block';
 }
-document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))acList.style.display='none';});
-si.addEventListener('keydown',async e=>{
-  if(e.key!=='Enter')return;acList.style.display='none';
-  await fetchPlaces(si.value);const f=acList.querySelector('.ac-item');if(f)f.click();
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) acList.style.display = 'none';
+});
+si.addEventListener('keydown', async e => {
+  if (e.key !== 'Enter') return;
+  acList.style.display = 'none';
+  await fetchPlaces(si.value);
+  const f = acList.querySelector('.ac-item');
+  if (f) f.click();
 });
 
-function showToast(msg){
-  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
-  clearTimeout(toastTmt);toastTmt=setTimeout(()=>t.classList.remove('show'),2600);
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTmt);
+  toastTmt = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
 // Live clock
-setInterval(()=>{
-  const n=new Date(),lm=n.getHours()*60+n.getMinutes();
-  if(!dragging&&Math.abs(lm-mins)<=1){mins=lm;updateSliderUI();go();}
-},60000);
+setInterval(() => {
+  const n = new Date(), lm = n.getHours() * 60 + n.getMinutes();
+  if (!dragging && Math.abs(lm - mins) <= 1) { mins = lm; updateSliderUI(); go(); }
+}, 60000);
 
+// ── VENUES
+let VENUES = [];
 
-// ══════════════════════════════════════════
-// VENUES — add your partners here
-// ══════════════════════════════════════════
-let VENUES = []; // loaded from Supabase
-
-// Check if venue is in sun at current time
 function venueInSun(venue) {
-  const h = mins / 60; // current hour as float
+  const h = mins / 60;
   return venue.sunWindows.some(([start, end]) => h >= start && h < end);
 }
 
-// Compute sun slots for display — merge windows into readable format
 function getSunSlots(venue) {
   const DAY_START = 7, DAY_END = 21, DAY_SPAN = DAY_END - DAY_START;
   const nowH = mins / 60;
@@ -869,7 +825,6 @@ function getSunSlots(venue) {
   });
 }
 
-// Add venue markers to map
 const venueMarkers = {};
 
 function makePin(venue, inSun) {
@@ -884,7 +839,7 @@ function makePin(venue, inSun) {
     font-size: 20px;
     border: 3px solid #fff;
     background: ${inSun ? '#FFB800' : '#6b88b5'};
-    box-shadow: 0 2px 10px rgba(0,0,0,0.22)${inSun ? ', 0 0 0 0 rgba(255,184,0,0.4)' : ''};
+    box-shadow: 0 2px 10px rgba(0,0,0,0.22)${inSun ? ', 0 0 0 4px rgba(255,184,0,0.3)' : ''};
     cursor: pointer;
     will-change: transform;
     transform: translateZ(0);
@@ -900,41 +855,41 @@ function addVenueMarkers() {
   VENUES.forEach(venue => {
     const inSun = venueInSun(venue);
     const el = makePin(venue, inSun);
-
     const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
       .setLngLat([venue.lng, venue.lat])
       .addTo(map);
-
     el.addEventListener('click', e => {
       e.stopPropagation();
       openVenueCard(venue);
     });
-
     venueMarkers[venue.id] = { marker, el };
   });
 }
 
-// Update all venue pins when time changes
 function updateVenuePins() {
   VENUES.forEach(venue => {
     const v = venueMarkers[venue.id];
     if (!v) return;
     const inSun = venueInSun(venue);
     v.el.style.background = inSun ? '#FFB800' : '#6b88b5';
+    // FIX 5: also update box-shadow and animation when pin state changes
+    v.el.style.boxShadow = inSun
+      ? '0 2px 10px rgba(0,0,0,0.22), 0 0 0 4px rgba(255,184,0,0.3)'
+      : '0 2px 10px rgba(0,0,0,0.22)';
     v.el.style.animation = inSun ? 'pinGlow 2.5s ease-in-out infinite' : 'none';
   });
   if (currentVenue) updateVenueCard(currentVenue);
 }
 
-// Open venue card
+// ── VENUE CARD
 let currentVenue = null;
+
 function closeVenueCard() {
   const card = document.getElementById('venueCard');
   card.style.transform = '';
   card.classList.remove('visible');
   document.getElementById('cardBackdrop').classList.remove('visible');
   currentVenue = null;
-  // Show time pill again
   document.querySelector('.time-pill').style.opacity = '1';
   document.querySelector('.time-pill').style.pointerEvents = '';
 }
@@ -944,10 +899,8 @@ function openVenueCard(venue) {
   updateVenueCard(venue);
   document.getElementById('venueCard').classList.add('visible');
   document.getElementById('cardBackdrop').classList.add('visible');
-  // Hide time pill
   document.querySelector('.time-pill').style.opacity = '0';
   document.querySelector('.time-pill').style.pointerEvents = 'none';
-  // Smooth zoom to venue, offset center slightly right to leave room for card
   map.flyTo({
     center: [venue.lng, venue.lat],
     zoom: 16,
@@ -962,7 +915,6 @@ function updateVenueCard(venue) {
   document.getElementById('vcName').textContent = venue.name;
   document.getElementById('vcType').textContent = venue.type;
 
-  // Photo — show if available, hide if not
   const card = document.getElementById('venueCard');
   const photo = document.getElementById('vcPhoto');
   if (venue.photoUrl) {
@@ -979,9 +931,8 @@ function updateVenueCard(venue) {
   const statusTxt = document.getElementById('vcStatus');
   dot.className = 'status-dot ' + (inSun ? 'sun' : 'shade');
   statusTxt.className = 'venue-status-txt ' + (inSun ? 'sun' : 'shade');
-  statusTxt.textContent = inSun ? '☀️ In the sun now' : '🌑 In the shade now';
+  statusTxt.textContent = inSun ? '☀️ En plein soleil' : '🌑 À l\'ombre';
 
-  // Sun schedule bars
   const slots = getSunSlots(venue);
   const slotsEl = document.getElementById('vcSlots');
   slotsEl.innerHTML = slots.map(s => `
@@ -999,22 +950,11 @@ function updateVenueCard(venue) {
     </div>
   `).join('');
 
-  // CTA buttons
   document.getElementById('vcDir').onclick = () => window.open(venue.directionsUrl, '_blank');
   document.getElementById('vcRes').onclick = () => window.open(venue.reserveUrl, '_blank');
 }
 
-// Close card
-// close button uses inline onclick
-
-// Close on map click
-// Close card on map click
-
-
-// Markers initialized in style.load above
-
-
-// Swipe to close - on the whole card
+// Swipe to close
 (function() {
   const card = document.getElementById('venueCard');
   let startY = 0, active = false, moved = 0;
@@ -1029,31 +969,24 @@ function updateVenueCard(venue) {
   card.addEventListener('touchmove', e => {
     if (!active) return;
     moved = e.touches[0].clientY - startY;
-    if (moved > 0) {
-      card.style.transform = 'translateY(' + moved + 'px)';
-    }
+    if (moved > 0) card.style.transform = 'translateY(' + moved + 'px)';
   }, { passive: true });
 
-  card.addEventListener('touchend', e => {
+  card.addEventListener('touchend', () => {
     if (!active) return;
     active = false;
     card.style.transition = '';
-    if (moved > 70) {
-      closeVenueCard();
-    } else {
-      card.style.transform = '';
-    }
+    if (moved > 70) closeVenueCard();
+    else card.style.transform = '';
   }, { passive: true });
 })();
 
-
 document.getElementById('cardBackdrop').addEventListener('click', closeVenueCard);
-document.getElementById('cardBackdrop').addEventListener('touchend', (e) => {
+document.getElementById('cardBackdrop').addEventListener('touchend', e => {
   e.preventDefault();
   closeVenueCard();
 });
 
-
-
-
-// idle handler removed — rAF loop handles updates
+</script>
+</body>
+</html>
