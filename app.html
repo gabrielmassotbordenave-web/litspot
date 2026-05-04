@@ -963,20 +963,24 @@ let frameCount = 0;
 function animLoop() {
   frameCount++;
 
-  // Skip setLights entirely while zoom is transitioning
-  if (!zoomPaused) {
+  // Only update lights when zoomed in enough AND not transitioning
+  const shadowsActive = !zoomPaused && isDeepZoom() && map.isStyleLoaded();
+
+  if (shadowsActive) {
     const diff = targetMins - renderedMins;
     if (Math.abs(diff) > 0.02) {
       renderedMins += diff * 0.15;
-      if (map.isStyleLoaded()) {
-        try { updateSunLightAt(renderedMins); } catch(e) {}
-      }
+      try { updateSunLightAt(renderedMins); } catch(e) {}
     } else {
       renderedMins = targetMins;
-      if (frameCount % 30 === 0 && map.isStyleLoaded()) {
+      // Periodic refresh to recover from Mapbox style reloads
+      if (frameCount % 30 === 0) {
         try { updateSunLightAt(renderedMins); } catch(e) {}
       }
     }
+  } else {
+    // Keep renderedMins in sync even when lights are off
+    renderedMins = targetMins;
   }
 
   rafId = requestAnimationFrame(animLoop);
