@@ -194,11 +194,6 @@ html, body {
   width: 56px;
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
-.time-pill.pill-hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-50%) translateX(-8px);
-}
 .pill-time {
   font-family: 'Cormorant Garamond', serif;
   font-size: 17px; font-weight: 600;
@@ -506,25 +501,26 @@ html, body {
 /* ── WEATHER PILL ── */
 #weatherPill {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 62px); /* below the top-bar */
+  top: calc(env(safe-area-inset-top) + 62px);
   right: 12px;
   z-index: 100;
   background: rgba(22,14,10,0.82);
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 10px;
   padding: 7px 11px;
-  display: none; /* hidden when sunny */
+  display: flex;
   align-items: center;
   gap: 6px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 4px 16px rgba(0,0,0,0.25);
   opacity: 0;
-  transition: opacity 0.4s ease;
+  visibility: hidden;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
 }
 #weatherPill.visible {
-  display: flex;
   opacity: 1;
+  visibility: visible;
 }
 .weather-icon {
   font-size: 13px;
@@ -949,13 +945,11 @@ let zoomPauseTimeout = null;
 function isDeepZoom() { return map.getZoom() >= SHADOW_ZOOM; }
 
 function updateZoomMode() {
-  const pill = document.querySelector('.time-pill');
   const hint = document.getElementById('zoomHint');
+  // Pill is always visible — only control the zoom hint
   if (isDeepZoom()) {
-    pill.classList.remove('pill-hidden');
     hint.classList.remove('visible');
   } else {
-    pill.classList.add('pill-hidden');
     hint.classList.add('visible');
   }
 }
@@ -1050,12 +1044,8 @@ const acList = document.getElementById('ac-list');
 const spn   = document.getElementById('spinner');
 const sico  = document.querySelector('.s-icon');
 
-si.addEventListener('focus', () => {
-  document.querySelector('.time-pill').classList.add('pill-hidden');
-});
-si.addEventListener('blur', () => {
-  setTimeout(() => updateZoomMode(), 200);
-});
+si.addEventListener('focus', () => {});
+si.addEventListener('blur', () => {});
 si.addEventListener('input', () => {
   clearTimeout(acTimeout);
   const q = si.value.trim();
