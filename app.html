@@ -501,15 +501,15 @@ const i18n = {
     searchPlaceholder: 'Bar, restaurant, adresse…',
     zoomHint: 'Approchez et jouez avec les <em>ombres</em> ☀️',
     inSun: '☀️ En plein soleil',
-    inShade: '🌑 À l'ombre',
-    sunToday: '☀️ Soleil aujourd'hui',
-    directions: '🗺 Itinéraire',
+    inShade: "🌑 À l'ombre",
+    sunToday: "☀️ Soleil aujourd'hui",
+    directions: "🗺 Itinéraire",
     reserve: 'Réserver',
-    locating: '📡 Localisation…',
-    locationFound: '🎯 Position trouvée !',
-    locationDenied: '❌ Accès refusé',
-    locationUpdated: '📍 Position mise à jour',
-    notSupported: 'Non supporté',
+    locating: "📡 Localisation…",
+    locationFound: "🎯 Position trouvée !",
+    locationDenied: "❌ Accès refusé",
+    locationUpdated: "📍 Position mise à jour",
+    notSupported: "Non supporté",
   },
   en: {
     searchPlaceholder: 'Bar, restaurant, address…',
@@ -642,11 +642,11 @@ function updateSunLightAt(m) {
   if (alt < -6) {
     color = '#070d1f'; intensity = 0.05;
   } else if (alt <= 0) {
-    const t = (alt + 6) / 6;
-    color = `hsl(25, 40%, ${15 + t*20}%)`; intensity = 0.1 + t * 0.3;
+    const tDawn = (alt + 6) / 6;
+    color = `hsl(25, 40%, ${15 + tDawn*20}%)`; intensity = 0.1 + tDawn * 0.3;
   } else if (alt < 15) {
-    const t = alt / 15;
-    color = `hsl(${35 + t*10}, ${80 - t*20}%, ${55 + t*15}%)`; intensity = 0.4 + t * 0.4;
+    const tRise = alt / 15;
+    color = `hsl(${35 + tRise*10}, ${80 - tRise*20}%, ${55 + tRise*15}%)`; intensity = 0.4 + tRise * 0.4;
   } else {
     color = '#fff8f0'; intensity = 0.85;
   }
