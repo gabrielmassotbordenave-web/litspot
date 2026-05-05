@@ -549,6 +549,82 @@ html, body {
   color: rgba(255,245,230,0.95);
   font-weight: 500;
 }
+
+/* ── VENUE CARD EXPANDED STATE ── */
+.venue-card.expanded {
+  transform: translateY(0) !important;
+  height: 85vh;
+  border-radius: 24px 24px 0 0;
+}
+.venue-card-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  height: 100%;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+}
+/* Hide scroll when not expanded */
+.venue-card:not(.expanded) .venue-card-scroll {
+  overflow: hidden;
+}
+
+/* Handle animates when there are extra infos */
+.card-handle.has-more {
+  background: #E8890C;
+  opacity: 0.6;
+}
+
+/* Swipe up hint */
+.card-swipe-hint {
+  display: none;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(28,20,16,0.3);
+  letter-spacing: 0.04em;
+  margin: 2px 0 8px;
+}
+.venue-card.has-more-info .card-swipe-hint { display: block; }
+.venue-card.expanded .card-swipe-hint { display: none; }
+
+/* Extra info section */
+.venue-card-extra {
+  display: none;
+  padding: 0 20px 8px;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  margin-top: 4px;
+}
+.venue-card.expanded .venue-card-extra { display: block; }
+
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.info-row:last-child { border-bottom: none; }
+.info-icon {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.info-content { flex: 1; }
+.info-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: rgba(28,20,16,0.4);
+  margin-bottom: 3px;
+}
+.info-value {
+  font-size: 14px;
+  font-weight: 400;
+  color: #1a0e08;
+  line-height: 1.4;
+}
+.info-value.amber { color: #E8890C; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -590,29 +666,33 @@ html, body {
 <div id="cardBackdrop"></div>
 <div class="venue-card" id="venueCard">
   <button class="venue-card-close" onclick="closeVenueCard()">✕</button>
-  <div class="card-handle"></div>
-  <div class="venue-card-header" id="vcHeader">
-    <img class="venue-card-photo" id="vcPhoto" src="" alt="" style="display:none">
-    <div class="venue-card-header-inner">
-      <div class="venue-card-status">
-        <div class="status-dot" id="vcDot"></div>
-        <span class="venue-status-txt" id="vcStatus"></span>
-        <span class="venue-walk-sep" id="vcWalkSep" style="display:none;opacity:0.35;margin:0 4px;font-size:11px;">·</span>
-        <span class="venue-walk-txt" id="vcWalk" style="display:none;font-size:11px;font-weight:500;color:rgba(28,20,16,0.55);"></span>
+  <div class="venue-card-scroll" id="vcScroll">
+    <div class="card-handle" id="cardHandle"></div>
+    <div class="card-swipe-hint" id="vcSwipeHint"></div>
+    <div class="venue-card-header" id="vcHeader">
+      <img class="venue-card-photo" id="vcPhoto" src="" alt="" style="display:none">
+      <div class="venue-card-header-inner">
+        <div class="venue-card-status">
+          <div class="status-dot" id="vcDot"></div>
+          <span class="venue-status-txt" id="vcStatus"></span>
+          <span class="venue-walk-sep" id="vcWalkSep" style="display:none;opacity:0.35;margin:0 4px;font-size:11px;">·</span>
+          <span class="venue-walk-txt" id="vcWalk" style="display:none;font-size:11px;font-weight:500;color:rgba(28,20,16,0.55);"></span>
+        </div>
+        <div class="venue-name" id="vcName"></div>
+        <div class="venue-type" id="vcType"></div>
       </div>
-      <div class="venue-name" id="vcName"></div>
-      <div class="venue-type" id="vcType"></div>
     </div>
-  </div>
-  <div class="venue-card-body">
-    <div class="sun-schedule">
-      <div class="sun-schedule-title" id="sunSchedTitle">☀️ Soleil aujourd'hui</div>
-      <div class="sun-slots" id="vcSlots"></div>
+    <div class="venue-card-body">
+      <div class="sun-schedule">
+        <div class="sun-schedule-title" id="sunSchedTitle">☀️ Soleil aujourd'hui</div>
+        <div class="sun-slots" id="vcSlots"></div>
+      </div>
+      <div class="venue-cta">
+        <button class="btn-directions" id="vcDir">🗺 Itinéraire</button>
+        <button class="btn-reserve" id="vcRes">Réserver</button>
+      </div>
     </div>
-    <div class="venue-cta">
-      <button class="btn-directions" id="vcDir">🗺 Itinéraire</button>
-      <button class="btn-reserve" id="vcRes">Réserver</button>
-    </div>
+    <div class="venue-card-extra" id="vcExtra"></div>
   </div>
 </div>
 
@@ -637,6 +717,11 @@ const i18n = {
     hintLegendShade: 'à l\'ombre',
     walkMin: 'min à pied',
     walkLess: '< 1 min à pied',
+    hoursLabel: 'Horaires',
+    happyLabel: 'Happy Hour',
+    beerLabel: 'Bière',
+    notesLabel: 'À savoir',
+    swipeUp: 'Voir plus',
     hintInvite: 'Zoomez et explorez le soleil heure par heure',
     inSun: '☀️ En plein soleil',
     inShade: "🌑 À l'ombre",
@@ -661,6 +746,11 @@ const i18n = {
     hintLegendShade: 'in the shade',
     walkMin: 'min walk',
     walkLess: '< 1 min walk',
+    hoursLabel: 'Hours',
+    happyLabel: 'Happy Hour',
+    beerLabel: 'Beer',
+    notesLabel: 'Good to know',
+    swipeUp: 'See more',
     hintInvite: 'Zoom in and explore sunlight hour by hour',
     inSun: '☀️ In the sun',
     inShade: '🌑 In the shade',
@@ -870,6 +960,14 @@ async function loadVenues() {
       sunWindows: v.sun_windows,
       photoUrl: v.photo_url || null,
       active: v.active,
+      openingHoursFr: v.opening_hours_fr || null,
+      openingHoursEn: v.opening_hours_en || null,
+      happyHourStart: v.happy_hour_start || null,
+      happyHourEnd:   v.happy_hour_end   || null,
+      happyHourPrice: v.happy_hour_price || null,
+      beerPrice:      v.beer_price       || null,
+      notesFr:        v.notes_fr         || null,
+      notesEn:        v.notes_en         || null,
     }));
   } catch (e) {
     console.error('Supabase error:', e);
@@ -1328,9 +1426,11 @@ function closeVenueCard() {
   const card = document.getElementById('venueCard');
   card.style.transform = '';
   card.classList.remove('visible');
+  card.classList.remove('expanded');
+  card.classList.remove('has-more-info');
   document.getElementById('cardBackdrop').classList.remove('visible');
+  document.getElementById('vcScroll').scrollTop = 0;
   currentVenue = null;
-  // Let updateZoomMode decide pill visibility based on current zoom
   updateZoomMode();
 }
 
@@ -1394,14 +1494,84 @@ function updateVenueCard(venue) {
 
   document.getElementById('vcDir').onclick = () => { trackClick(venue.id, 'directions_click'); window.open(venue.directionsUrl, '_blank'); };
   document.getElementById('vcRes').onclick = () => { trackClick(venue.id, 'reserve_click'); window.open(venue.reserveUrl, '_blank'); };
+
+  // ── Extra info section
+  const extra = document.getElementById('vcExtra');
+  const handle = document.getElementById('cardHandle');
+  const swipeHint = document.getElementById('vcSwipeHint');
+  const card = document.getElementById('venueCard');
+  const rows = [];
+
+  // Opening hours
+  const hours = lang === 'fr' ? venue.openingHoursFr : venue.openingHoursEn;
+  if (hours) rows.push(`
+    <div class="info-row">
+      <div class="info-icon">🕐</div>
+      <div class="info-content">
+        <div class="info-label">${t('hoursLabel')}</div>
+        <div class="info-value">${hours}</div>
+      </div>
+    </div>`);
+
+  // Beer price
+  if (venue.beerPrice) rows.push(`
+    <div class="info-row">
+      <div class="info-icon">🍺</div>
+      <div class="info-content">
+        <div class="info-label">${t('beerLabel')}</div>
+        <div class="info-value">${venue.beerPrice}</div>
+      </div>
+    </div>`);
+
+  // Happy hour
+  if (venue.happyHourStart && venue.happyHourEnd) {
+    const fmtTime = t => t.slice(0,5).replace(':', 'h');
+    const hhStr = fmtTime(venue.happyHourStart) + ' – ' + fmtTime(venue.happyHourEnd)
+      + (venue.happyHourPrice ? ' · ' + venue.happyHourPrice : '');
+    rows.push(`
+    <div class="info-row">
+      <div class="info-icon">🎉</div>
+      <div class="info-content">
+        <div class="info-label">${t('happyLabel')}</div>
+        <div class="info-value amber">${hhStr}</div>
+      </div>
+    </div>`);
+  }
+
+  // Notes
+  const notes = lang === 'fr' ? venue.notesFr : venue.notesEn;
+  if (notes) rows.push(`
+    <div class="info-row">
+      <div class="info-icon">💬</div>
+      <div class="info-content">
+        <div class="info-label">${t('notesLabel')}</div>
+        <div class="info-value">${notes}</div>
+      </div>
+    </div>`);
+
+  extra.innerHTML = rows.join('');
+
+  // Show/hide swipe affordance based on whether there are infos
+  if (rows.length > 0) {
+    card.classList.add('has-more-info');
+    handle.classList.add('has-more');
+    swipeHint.textContent = t('swipeUp');
+  } else {
+    card.classList.remove('has-more-info');
+    handle.classList.remove('has-more');
+    swipeHint.textContent = '';
+  }
 }
 
-// Swipe to close
+// Swipe handler — down=close/collapse, up=expand
 (function() {
   const card = document.getElementById('venueCard');
+  const scroll = document.getElementById('vcScroll');
   let startY = 0, active = false, moved = 0;
 
   card.addEventListener('touchstart', e => {
+    // Only intercept swipe when scroll is at top (or card not expanded)
+    if (card.classList.contains('expanded') && scroll.scrollTop > 0) return;
     startY = e.touches[0].clientY;
     active = true;
     moved = 0;
@@ -1411,15 +1581,34 @@ function updateVenueCard(venue) {
   card.addEventListener('touchmove', e => {
     if (!active) return;
     moved = e.touches[0].clientY - startY;
-    if (moved > 0) card.style.transform = 'translateY(' + moved + 'px)';
+    // Only drag down
+    if (moved > 0 && !card.classList.contains('expanded')) {
+      card.style.transform = 'translateY(' + moved + 'px)';
+    }
   }, { passive: true });
 
   card.addEventListener('touchend', () => {
     if (!active) return;
     active = false;
     card.style.transition = '';
-    if (moved > 70) closeVenueCard();
-    else card.style.transform = '';
+
+    if (moved < -60 && card.classList.contains('has-more-info') && !card.classList.contains('expanded')) {
+      // Swipe up → expand
+      card.classList.add('expanded');
+      card.style.transform = '';
+    } else if (moved > 70) {
+      if (card.classList.contains('expanded')) {
+        // Swipe down from expanded → collapse
+        card.classList.remove('expanded');
+        scroll.scrollTop = 0;
+        card.style.transform = '';
+      } else {
+        // Swipe down from normal → close
+        closeVenueCard();
+      }
+    } else {
+      card.style.transform = '';
+    }
   }, { passive: true });
 })();
 
