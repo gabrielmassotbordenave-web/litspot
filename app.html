@@ -194,6 +194,11 @@ html, body {
   width: 56px;
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
+.time-pill.search-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) translateX(-8px);
+}
 .pill-time {
   font-family: 'Cormorant Garamond', serif;
   font-size: 17px; font-weight: 600;
@@ -522,6 +527,10 @@ html, body {
   opacity: 1;
   visibility: visible;
 }
+#weatherPill.search-hidden {
+  opacity: 0 !important;
+  pointer-events: none;
+}
 .weather-icon {
   font-size: 13px;
   line-height: 1;
@@ -588,6 +597,8 @@ html, body {
       <div class="venue-card-status">
         <div class="status-dot" id="vcDot"></div>
         <span class="venue-status-txt" id="vcStatus"></span>
+        <span class="venue-walk-sep" id="vcWalkSep" style="display:none;opacity:0.35;margin:0 4px;font-size:11px;">·</span>
+        <span class="venue-walk-txt" id="vcWalk" style="display:none;font-size:11px;font-weight:500;color:rgba(28,20,16,0.55);"></span>
       </div>
       <div class="venue-name" id="vcName"></div>
       <div class="venue-type" id="vcType"></div>
@@ -624,6 +635,8 @@ const i18n = {
     searchPlaceholder: 'Bar, restaurant, adresse…',
     hintLegendSun: 'au soleil',
     hintLegendShade: 'à l\'ombre',
+    walkMin: 'min à pied',
+    walkLess: '< 1 min à pied',
     hintInvite: 'Zoomez et explorez le soleil heure par heure',
     inSun: '☀️ En plein soleil',
     inShade: "🌑 À l'ombre",
@@ -646,6 +659,8 @@ const i18n = {
     searchPlaceholder: 'Bar, restaurant, address…',
     hintLegendSun: 'in the sun',
     hintLegendShade: 'in the shade',
+    walkMin: 'min walk',
+    walkLess: '< 1 min walk',
     hintInvite: 'Zoom in and explore sunlight hour by hour',
     inSun: '☀️ In the sun',
     inShade: '🌑 In the shade',
@@ -800,6 +815,36 @@ async function trackClick(venueId, clickType) {
     });
   } catch(e) {
     // Silently fail — tracking is non-critical
+  }
+}
+
+
+// ── WALK TIME
+async function fetchWalkTime(venue) {
+  // Reset walk display
+  document.getElementById('vcWalkSep').style.display = 'none';
+  document.getElementById('vcWalk').style.display = 'none';
+
+  // Need user position
+  if (userLat === null || userLng === null) return;
+
+  try {
+    const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${userLng},${userLat};${venue.lng},${venue.lat}?access_token=${mapboxgl.accessToken}&overview=false`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const durationSec = data.routes?.[0]?.duration;
+    if (durationSec === undefined) return;
+
+    const durationMin = Math.round(durationSec / 60);
+    const label = durationMin < 1 ? t('walkLess') : durationMin + ' ' + t('walkMin');
+
+    const sep = document.getElementById('vcWalkSep');
+    const txt = document.getElementById('vcWalk');
+    txt.textContent = '🚶 ' + label;
+    sep.style.display = 'inline';
+    txt.style.display = 'inline';
+  } catch(e) {
+    // Silently fail
   }
 }
 
@@ -1090,8 +1135,16 @@ const acList = document.getElementById('ac-list');
 const spn   = document.getElementById('spinner');
 const sico  = document.querySelector('.s-icon');
 
-si.addEventListener('focus', () => {});
-si.addEventListener('blur', () => {});
+si.addEventListener('focus', () => {
+  document.querySelector('.time-pill').classList.add('search-hidden');
+  document.getElementById('weatherPill').classList.add('search-hidden');
+});
+si.addEventListener('blur', () => {
+  setTimeout(() => {
+    document.querySelector('.time-pill').classList.remove('search-hidden');
+    document.getElementById('weatherPill').classList.remove('search-hidden');
+  }, 200);
+});
 si.addEventListener('input', () => {
   clearTimeout(acTimeout);
   const q = si.value.trim();
@@ -1285,6 +1338,7 @@ function openVenueCard(venue) {
   currentVenue = venue;
   updateVenueCard(venue);
   trackClick(venue.id, 'card_view');
+  fetchWalkTime(venue);
   document.getElementById('venueCard').classList.add('visible');
   document.getElementById('cardBackdrop').classList.add('visible');
   // Fly to venue but never zoom out below shadow threshold
