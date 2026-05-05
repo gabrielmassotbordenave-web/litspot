@@ -1499,7 +1499,7 @@ function updateVenueCard(venue) {
   const extra = document.getElementById('vcExtra');
   const handle = document.getElementById('cardHandle');
   const swipeHint = document.getElementById('vcSwipeHint');
-  const card = document.getElementById('venueCard');
+  // card already declared above
   const rows = [];
 
   // Opening hours
@@ -1525,7 +1525,7 @@ function updateVenueCard(venue) {
 
   // Happy hour
   if (venue.happyHourStart && venue.happyHourEnd) {
-    const fmtTime = t => t.slice(0,5).replace(':', 'h');
+    const fmtTime = h => h.slice(0,5).replace(':', 'h');
     const hhStr = fmtTime(venue.happyHourStart) + ' – ' + fmtTime(venue.happyHourEnd)
       + (venue.happyHourPrice ? ' · ' + venue.happyHourPrice : '');
     rows.push(`
