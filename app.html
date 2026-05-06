@@ -287,7 +287,6 @@ html, body {
 /* FIX 3: has-photo mode — name/type/status need light colours on dark overlay */
 .venue-card.has-photo .venue-name  { color: #FFFFFF; }
 .venue-card.has-photo .venue-type  { color: rgba(255,255,255,0.65); }
-.venue-card.has-photo .venue-status-txt.shade { color: rgba(255,255,255,0.7); }
 /* walk colors on photo handled by photo-status bar on white bg */
 
 .venue-card-status {
@@ -704,6 +703,139 @@ html, body {
 .venue-card:not(.has-photo) .venue-card-photo-status {
   display: none;
 }
+
+/* ── ONBOARDING ── */
+#onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(22,14,10,0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+#onboarding.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+.onb-card {
+  background: rgba(28,20,16,0.96);
+  border: 1px solid rgba(255,240,220,0.12);
+  border-radius: 24px;
+  padding: 28px 24px 24px;
+  max-width: 340px;
+  width: 100%;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+}
+.onb-close {
+  position: absolute;
+  top: 16px; right: 16px;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: rgba(255,245,230,0.6);
+  font-size: 14px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.onb-close:active { background: rgba(255,255,255,0.15); }
+.onb-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; font-weight: 400;
+  color: #FFF5E6;
+  letter-spacing: -0.3px;
+  margin-bottom: 4px;
+}
+.onb-logo em { color: #FFB800; font-style: italic; }
+.onb-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.onb-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: rgba(255,240,220,0.08);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+.onb-text-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 2px;
+}
+.onb-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,245,230,0.92);
+  line-height: 1.45;
+}
+.onb-label .onb-mid {
+  color: rgba(255,245,230,0.35);
+  margin: 0 4px;
+}
+.onb-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+  margin: 0 -24px;
+}
+.onb-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  background: #E8890C;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+  letter-spacing: 0.01em;
+}
+.onb-btn:active { background: #FFA928; }
+/* pin dots reused from hint */
+.onb-pins {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.onb-pin {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.9);
+  flex-shrink: 0;
+}
+.onb-pin.sun  { background: #FFB800; box-shadow: 0 0 0 2px rgba(255,184,0,0.3); }
+.onb-pin.shade { background: #6b88b5; }
+.onb-pin-label {
+  font-size: 12px;
+  color: rgba(255,245,230,0.65);
+  font-family: 'Outfit', sans-serif;
+}
+.onb-pin-sep {
+  color: rgba(255,245,230,0.25);
+  font-size: 11px;
+}
 </style>
 </head>
 <body>
@@ -799,6 +931,42 @@ html, body {
 </div>
 <div id="toast"></div>
 
+<!-- Onboarding -->
+<div id="onboarding">
+  <div class="onb-card">
+    <button class="onb-close" id="onbClose">✕</button>
+    <div class="onb-logo">Lit<em>Spot</em></div>
+    <div class="onb-row">
+      <div class="onb-icon">📍</div>
+      <div class="onb-text-wrap">
+        <div class="onb-pins">
+          <div class="onb-pin sun"></div>
+          <span class="onb-pin-label" id="onbPin1">au soleil</span>
+          <span class="onb-pin-sep">·</span>
+          <div class="onb-pin shade"></div>
+          <span class="onb-pin-label" id="onbPin2">à l'ombre</span>
+        </div>
+      </div>
+    </div>
+    <div class="onb-divider"></div>
+    <div class="onb-row">
+      <div class="onb-icon">⏱</div>
+      <div class="onb-text-wrap">
+        <div class="onb-label" id="onbSlider">Change l'heure pour voir qui sera au soleil · Zoome pour les ombres réelles</div>
+      </div>
+    </div>
+    <div class="onb-divider"></div>
+    <div class="onb-row">
+      <div class="onb-icon">👆</div>
+      <div class="onb-text-wrap">
+        <div class="onb-label" id="onbDoubleTap">Double-tape l'heure pour revenir à maintenant</div>
+      </div>
+    </div>
+    <button class="onb-btn" id="onbBtn">Compris</button>
+  </div>
+</div>
+
+
 <script>
 
 // ── I18N
@@ -831,6 +999,11 @@ const i18n = {
     weatherSnow:    "Neige",
     weatherStorm:   "Orage",
     weatherFog:     "Brouillard",
+    onbClose:    'Compris',
+    onbPin1:     'au soleil',
+    onbPin2:     "à l'ombre",
+    onbSlider:   "Change l'heure pour voir qui sera au soleil · Zoome pour les ombres réelles",
+    onbDoubleTap:"Double-tape l'heure pour revenir à maintenant",
   },
   en: {
     searchPlaceholder: 'Bar, restaurant, address…',
@@ -860,6 +1033,11 @@ const i18n = {
     weatherSnow:    'Snowing',
     weatherStorm:   'Stormy',
     weatherFog:     'Foggy',
+    onbClose:    'Got it',
+    onbPin1:     'in the sun',
+    onbPin2:     'in the shade',
+    onbSlider:   'Change the time to see who will be in the sun · Zoom in for real shadows',
+    onbDoubleTap:'Double-tap the time to go back to now',
   }
 };
 
@@ -903,6 +1081,7 @@ function applyLang() {
   currentSearchLang = lang;
   // Refresh weather text if pill is visible
   if (lastWeatherId !== null) showWeatherPill(lastWeatherId, lastTempC);
+  applyOnbLang();
 }
 
 let currentSearchLang = 'fr';
@@ -1074,6 +1253,39 @@ async function loadVenues() {
     console.error('Supabase error:', e);
     return [];
   }
+}
+
+
+// ── ONBOARDING
+function closeOnboarding() {
+  const el = document.getElementById('onboarding');
+  el.classList.remove('visible');
+  setTimeout(() => { el.style.display = 'none'; }, 400);
+  localStorage.setItem('litspot_onboarded', '1');
+}
+
+function applyOnbLang() {
+  const d = i18n[lang];
+  document.getElementById('onbPin1').textContent = d.onbPin1;
+  document.getElementById('onbPin2').textContent = d.onbPin2;
+  document.getElementById('onbSlider').textContent = d.onbSlider;
+  document.getElementById('onbDoubleTap').textContent = d.onbDoubleTap;
+  document.getElementById('onbBtn').textContent = d.onbClose;
+}
+
+document.getElementById('onbClose').addEventListener('click', closeOnboarding);
+document.getElementById('onbBtn').addEventListener('click', closeOnboarding);
+// Close on backdrop tap (outside the card)
+document.getElementById('onboarding').addEventListener('click', e => {
+  if (e.target === document.getElementById('onboarding')) closeOnboarding();
+});
+
+// Show on first visit
+if (!localStorage.getItem('litspot_onboarded')) {
+  const onb = document.getElementById('onboarding');
+  onb.style.display = 'flex';
+  // Small delay so map renders first
+  setTimeout(() => onb.classList.add('visible'), 600);
 }
 
 mapboxgl.accessToken = 'pk.eyJ1IjoiZ2FicmllbG1hc3NvdGIiLCJhIjoiY21vZXI0amxnMGkydjJxcHlxNjRnNnRpaCJ9.z-osiZTamzQl6KATKftMaA';
