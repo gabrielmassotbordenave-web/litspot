@@ -781,9 +781,9 @@ html, body {
 .onb-label {
   font-family: 'Outfit', sans-serif;
   font-size: 13px;
-  font-weight: 500;
-  color: rgba(255,245,230,0.92);
-  line-height: 1.45;
+  font-weight: 400;
+  color: rgba(255,245,230,0.85);
+  line-height: 1.5;
 }
 .onb-label .onb-mid {
   color: rgba(255,245,230,0.35);
@@ -826,13 +826,22 @@ html, body {
 .onb-pin.sun  { background: #FFB800; box-shadow: 0 0 0 2px rgba(255,184,0,0.3); }
 .onb-pin.shade { background: #6b88b5; }
 .onb-pin-label {
-  font-size: 12px;
-  color: rgba(255,245,230,0.65);
   font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255,245,230,0.65);
 }
 .onb-pin-sep {
   color: rgba(255,245,230,0.25);
   font-size: 11px;
+}
+.onb-pin-desc {
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255,245,230,0.45);
+  line-height: 1.4;
+  margin-top: 6px;
 }
 
 /* Onboarding header row — logo + lang toggle + close */
@@ -989,7 +998,7 @@ html, body {
           <div class="onb-pin shade"></div>
           <span class="onb-pin-label" id="onbPin2">à l'ombre</span>
         </div>
-        <div class="onb-label" id="onbPinDesc" style="margin-top:5px;font-size:12px;color:rgba(255,245,230,0.55);">Les pins indiquent les terrasses au soleil ou à l'ombre</div>
+        <div class="onb-pin-desc" id="onbPinDesc">Les pins indiquent les terrasses au soleil ou à l'ombre</div>
       </div>
     </div>
     <div class="onb-divider"></div>
