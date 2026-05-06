@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LitSpot — Mettez votre terrasse sur la carte</title>
 <meta name="description" content="On vient photographier votre terrasse, vérifier vos heures d'ensoleillement et créer votre fiche sur LitSpot.">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -265,7 +266,7 @@ footer{background:var(--text);color:rgba(255,250,244,0.5);padding:40px 48px;disp
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="fieldPhone">Téléphone (optionnel)</label>
-        <input type="tel" class="form-input" placeholder="514 000 0000">
+        <input type="tel" class="form-input" id="inputPhone" placeholder="514 000 0000">
       </div>
     </div>
     <div class="form-group">
@@ -440,11 +441,96 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-// Form
-document.getElementById('contactForm').addEventListener('submit', e => {
+// ── SUPABASE CONFIG (same project as app.html)
+const SUPABASE_URL = 'https://dogontqbkihwircaldie.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ29udHFia2lod2lyY2FsZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTI3ODYsImV4cCI6MjA5Mjg2ODc4Nn0.5tvkp_zIEMZS8TM1PIYBuEJyBRIIvaTPzU3j9OTbMAA';
+
+// ── EMAILJS CONFIG
+// 1. Va sur emailjs.com → crée un compte gratuit
+// 2. Add Email Service → Gmail → copie le Service ID ici
+// 3. Email Templates → crée un template → copie le Template ID ici
+// 4. Account → API Keys → copie ta Public Key ici
+const EMAILJS_SERVICE_ID  = 'service_k3f98l7';
+const EMAILJS_TEMPLATE_ID = 'template_i14wu5e';
+const EMAILJS_PUBLIC_KEY  = 'Yd0pMvfmGSmEqXU0f';
+
+// Init EmailJS
+if (typeof emailjs !== 'undefined') {
+  emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+}
+
+// ── FORM SUBMIT
+document.getElementById('contactForm').addEventListener('submit', async e => {
   e.preventDefault();
-  document.getElementById('contactForm').style.display = 'none';
-  document.getElementById('formSuccess').style.display = 'block';
+
+  const btn = e.target.querySelector('.form-submit');
+  const originalText = btn.textContent;
+
+  // Read fields
+  const venue   = document.getElementById('inputVenue').value.trim();
+  const name    = document.getElementById('inputName').value.trim();
+  const email   = document.getElementById('inputEmail').value.trim();
+  const phone   = document.getElementById('inputPhone').value.trim();
+  const address = document.getElementById('inputAddress').value.trim();
+  const terrace = document.getElementById('inputTerrace').value.trim();
+
+  // Loading state
+  btn.textContent = '⏳ Envoi…';
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+
+  let supabaseOk = false;
+  let emailOk = false;
+
+  // ── 1. Save lead to Supabase
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/leads`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({ venue, name, email, phone, address, terrace, lang }),
+    });
+    supabaseOk = res.ok || res.status === 201;
+  } catch (err) {
+    console.warn('Supabase lead save failed:', err);
+  }
+
+  // ── 2. Send email notification via EmailJS
+  try {
+    if (typeof emailjs !== 'undefined' && EMAILJS_SERVICE_ID !== 'REMPLACE_PAR_TON_SERVICE_ID') {
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        venue, name, email, phone, address, terrace,
+        reply_to: email,
+        to_name: 'Gabriel',
+      });
+      emailOk = true;
+    }
+  } catch (err) {
+    console.warn('EmailJS send failed:', err);
+  }
+
+  // ── 3. Show result
+  if (supabaseOk || emailOk) {
+    // At least one channel worked → success
+    document.getElementById('contactForm').style.display = 'none';
+    document.getElementById('formSuccess').style.display = 'block';
+    document.getElementById('formSuccess').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else {
+    // Both failed — show inline error, restore button
+    btn.textContent = originalText;
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.background = '#c0392b';
+    btn.textContent = '❌ Erreur — réessayez';
+    setTimeout(() => {
+      btn.style.background = '';
+      btn.textContent = originalText;
+    }, 3000);
+  }
 });
 </script>
 </body>
