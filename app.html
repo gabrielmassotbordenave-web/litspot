@@ -288,9 +288,7 @@ html, body {
 .venue-card.has-photo .venue-name  { color: #FFFFFF; }
 .venue-card.has-photo .venue-type  { color: rgba(255,255,255,0.65); }
 .venue-card.has-photo .venue-status-txt.shade { color: rgba(255,255,255,0.7); }
-.venue-card.has-photo #vcWalkSep { opacity: 0.5; color: #fff; }
-.venue-card.has-photo #vcWalk { color: rgba(255,255,255,0.75); }
-.venue-card.has-photo .venue-status-txt.sun { color: #FFD580; }
+/* walk colors on photo handled by photo-status bar on white bg */
 
 .venue-card-status {
   display: flex; align-items: center; gap: 8px;
@@ -685,6 +683,27 @@ html, body {
   opacity: 0;
   pointer-events: none;
 }
+
+/* ── PHOTO STATUS BAR — zone blanche entre photo et schedule ── */
+.venue-card-photo-status {
+  display: none; /* shown only via has-photo */
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  background: #fff;
+}
+.venue-card.has-photo .venue-card-photo-status {
+  display: flex;
+}
+/* When has-photo, hide status from the overlay header */
+.venue-card.has-photo .venue-card-header-inner .venue-card-status {
+  display: none;
+}
+/* When no photo, hide the photo status bar */
+.venue-card:not(.has-photo) .venue-card-photo-status {
+  display: none;
+}
 </style>
 </head>
 <body>
@@ -747,6 +766,13 @@ html, body {
         <div class="venue-name" id="vcName"></div>
         <div class="venue-type" id="vcType"></div>
       </div>
+    </div>
+    <!-- Status bar shown below photo (has-photo mode only) -->
+    <div class="venue-card-photo-status" id="vcPhotoStatus">
+      <div class="status-dot" id="vcDot2"></div>
+      <span class="venue-status-txt" id="vcStatus2"></span>
+      <span id="vcWalkSep2" style="display:none;opacity:0.35;margin:0 4px;font-size:11px;">·</span>
+      <span id="vcWalk2" style="display:none;font-size:11px;font-weight:500;color:rgba(28,20,16,0.55);"></span>
     </div>
     <div class="venue-card-body">
       <div class="sun-schedule">
@@ -977,9 +1003,11 @@ async function trackClick(venueId, clickType) {
 
 // ── WALK TIME
 async function fetchWalkTime(venue) {
-  // Reset walk display
+  // Reset walk display (both header and photo status bar)
   document.getElementById('vcWalkSep').style.display = 'none';
   document.getElementById('vcWalk').style.display = 'none';
+  document.getElementById('vcWalkSep2').style.display = 'none';
+  document.getElementById('vcWalk2').style.display = 'none';
 
   // Need user position
   if (userLat === null || userLng === null) return;
@@ -999,6 +1027,13 @@ async function fetchWalkTime(venue) {
     txt.textContent = '🚶 ' + label;
     sep.style.display = 'inline';
     txt.style.display = 'inline';
+
+    // Also populate photo status bar walk
+    const sep2 = document.getElementById('vcWalkSep2');
+    const txt2 = document.getElementById('vcWalk2');
+    txt2.textContent = '🚶 ' + label;
+    sep2.style.display = 'inline';
+    txt2.style.display = 'inline';
   } catch(e) {
     // Silently fail
   }
@@ -1587,6 +1622,13 @@ function updateVenueCard(venue) {
   dot.className = 'status-dot ' + (inSun ? 'sun' : 'shade');
   statusTxt.className = 'venue-status-txt ' + (inSun ? 'sun' : 'shade');
   statusTxt.textContent = inSun ? t('inSun') : t('inShade');
+
+  // Also update photo status bar (shown below photo in has-photo mode)
+  const dot2 = document.getElementById('vcDot2');
+  const statusTxt2 = document.getElementById('vcStatus2');
+  dot2.className = 'status-dot ' + (inSun ? 'sun' : 'shade');
+  statusTxt2.className = 'venue-status-txt ' + (inSun ? 'sun' : 'shade');
+  statusTxt2.textContent = inSun ? t('inSun') : t('inShade');
 
   const slots = getSunSlots(venue);
   const slotsEl = document.getElementById('vcSlots');
