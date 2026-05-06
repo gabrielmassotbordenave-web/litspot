@@ -273,6 +273,7 @@ html, body {
   position: relative;
   padding: 0;
   border-bottom: none;
+  overflow: hidden;
 }
 .venue-card.has-photo .venue-card-header-inner {
   position: absolute;
@@ -287,6 +288,9 @@ html, body {
 .venue-card.has-photo .venue-name  { color: #FFFFFF; }
 .venue-card.has-photo .venue-type  { color: rgba(255,255,255,0.65); }
 .venue-card.has-photo .venue-status-txt.shade { color: rgba(255,255,255,0.7); }
+.venue-card.has-photo #vcWalkSep { opacity: 0.5; color: #fff; }
+.venue-card.has-photo #vcWalk { color: rgba(255,255,255,0.75); }
+.venue-card.has-photo .venue-status-txt.sun { color: #FFD580; }
 
 .venue-card-status {
   display: flex; align-items: center; gap: 8px;
@@ -360,14 +364,22 @@ html, body {
 .venue-card-close {
   position: absolute; top: 14px; right: 14px;
   width: 36px; height: 36px; border-radius: 50%;
-  background: rgba(28,20,16,0.12); border: none;
+  background: rgba(28,20,16,0.08); border: none;
   color: #1C1410; font-size: 16px; font-weight: 700; line-height: 1;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; z-index: 2000;
+  cursor: pointer; z-index: 2001;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.venue-card-close:active { background: rgba(28,20,16,0.2); }
+.venue-card-close:active { background: rgba(28,20,16,0.15); }
+/* On photo — white frosted glass to stay visible */
+.venue-card.has-photo .venue-card-close {
+  background: rgba(255,255,255,0.88);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.venue-card.has-photo .venue-card-close:active { background: rgba(255,255,255,0.70); }
 
 /* ── CARD BACKDROP ── */
 #cardBackdrop {
@@ -562,6 +574,7 @@ html, body {
   height: 100%;
   padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
 }
+/* header-inner absolute positioning needs relative parent on the header, not scroll */
 /* Hide scroll when not expanded */
 .venue-card:not(.expanded) .venue-card-scroll {
   overflow: hidden;
@@ -625,6 +638,53 @@ html, body {
   line-height: 1.4;
 }
 .info-value.amber { color: #E8890C; font-weight: 500; }
+
+/* ── TIME CHIPS ── */
+.time-chips {
+  position: absolute;
+  left: 76px; /* just right of the time pill (56px wide + 12px margin + 8px gap) */
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  transform: translateY(-50%) translateX(-6px);
+}
+.time-chips.visible {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateY(-50%) translateX(0);
+}
+.time-chip {
+  background: rgba(28,20,16,0.82);
+  border: 1px solid rgba(255,240,220,0.14);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,245,230,0.85);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, transform 0.15s;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.time-chip:active {
+  background: rgba(232,137,12,0.85);
+  transform: scale(0.95);
+}
+.time-chips.search-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -653,13 +713,19 @@ html, body {
 </div>
 
 <!-- Time pill -->
-<div class="time-pill">
+<div class="time-pill" id="timePill">
   <div class="pill-time" id="timeTxt">12:00</div>
   <div class="pill-status" id="statusEmoji">☀️</div>
   <div class="slider-track" id="sliderTrack">
     <div class="slider-fill" id="sliderFill"></div>
     <div class="slider-thumb" id="sliderThumb"></div>
   </div>
+</div>
+
+<!-- Time chips -->
+<div class="time-chips" id="timeChips">
+  <button class="time-chip" id="chip1h">+1h</button>
+  <button class="time-chip" id="chip2h">+2h</button>
 </div>
 
 <!-- FIX 4: Venue card HTML — was completely absent from the body -->
@@ -1085,6 +1151,7 @@ track.addEventListener('mousedown', e => {
   dragging = true;
   mins = pxToMins(e.clientY);
   updateSliderUI(); go();
+  showChips();
   e.preventDefault();
 });
 document.addEventListener('mousemove', e => {
@@ -1098,6 +1165,7 @@ track.addEventListener('touchstart', e => {
   dragging = true;
   mins = pxToMins(e.touches[0].clientY);
   updateSliderUI(); go();
+  showChips();
   e.preventDefault();
 }, { passive: false });
 document.addEventListener('touchmove', e => {
@@ -1106,6 +1174,49 @@ document.addEventListener('touchmove', e => {
   updateSliderUI(); go();
 }, { passive: false });
 document.addEventListener('touchend', () => { dragging = false; });
+// ── TIME CHIPS
+let chipsTimeout = null;
+let lastTapTime = 0;
+
+function showChips() {
+  document.getElementById('timeChips').classList.add('visible');
+  clearTimeout(chipsTimeout);
+  chipsTimeout = setTimeout(() => {
+    document.getElementById('timeChips').classList.remove('visible');
+  }, 3000);
+}
+
+function jumpTime(offsetMins) {
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  mins = Math.min(nowMins + offsetMins, 1439);
+  updateSliderUI();
+  go();
+  showChips(); // reset hide timer on each tap
+}
+
+function resetToNow() {
+  const now = new Date();
+  mins = now.getHours() * 60 + now.getMinutes();
+  updateSliderUI();
+  go();
+}
+
+document.getElementById('chip1h').addEventListener('click', () => jumpTime(60));
+document.getElementById('chip2h').addEventListener('click', () => jumpTime(120));
+
+// Double-tap on time pill → reset to now
+document.getElementById('timePill').addEventListener('click', () => {
+  const now = Date.now();
+  if (now - lastTapTime < 350) {
+    resetToNow();
+    document.getElementById('timeChips').classList.remove('visible');
+  }
+  lastTapTime = now;
+});
+
+// Show chips on slider interaction
+
 
 // ── STATUS
 function updateStatus() {
@@ -1236,11 +1347,13 @@ const sico  = document.querySelector('.s-icon');
 si.addEventListener('focus', () => {
   document.querySelector('.time-pill').classList.add('search-hidden');
   document.getElementById('weatherPill').classList.add('search-hidden');
+  document.getElementById('timeChips').classList.add('search-hidden');
 });
 si.addEventListener('blur', () => {
   setTimeout(() => {
     document.querySelector('.time-pill').classList.remove('search-hidden');
     document.getElementById('weatherPill').classList.remove('search-hidden');
+    document.getElementById('timeChips').classList.remove('search-hidden');
   }, 200);
 });
 si.addEventListener('input', () => {
