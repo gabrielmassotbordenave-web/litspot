@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LitSpot — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --sun: #E8890C;
+  --sun-light: #FFA928;
+  --bg: #0f0d0b;
+  --bg2: #161210;
+  --bg3: #1e1814;
+  --card: #1a1612;
+  --border: rgba(255,240,220,0.07);
+  --border2: rgba(255,240,220,0.12);
+  --text: #FFF5E6;
+  --text2: rgba(255,245,230,0.55);
+  --text3: rgba(255,245,230,0.30);
+  --green: #4ade80;
+  --blue: #60a5fa;
+  --red: #f87171;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── LOGIN SCREEN ── */
+#loginScreen {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 24px;
+  padding: 40px 36px;
+  width: 100%; max-width: 360px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; gap: 24px;
+}
+.login-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px; font-weight: 400;
+  color: var(--text); text-align: center;
+}
+.login-logo em { color: var(--sun); font-style: italic; }
+.login-sub {
+  font-size: 12px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text3); text-align: center; margin-top: -16px;
+}
+.login-input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid var(--border2);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 15px; color: var(--text);
+  outline: none; letter-spacing: 2px;
+  transition: border-color 0.2s;
+  -webkit-text-security: disc;
+}
+.login-input:focus { border-color: var(--sun); }
+.login-input.error { border-color: var(--red); animation: shake 0.3s ease; }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+.login-btn {
+  width: 100%; padding: 14px;
+  background: var(--sun); color: #fff;
+  border: none; border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+}
+.login-btn:hover { background: var(--sun-light); }
+.login-error {
+  font-size: 13px; color: var(--red);
+  text-align: center; display: none;
+}
+
+/* ── DASHBOARD ── */
+#dashboard { display: none; }
+
+/* Header */
+.dash-header {
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,13,11,0.92);
+  backdrop-filter: blur(12px);
+}
+.dash-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; font-weight: 400; color: var(--text);
+}
+.dash-logo em { color: var(--sun); font-style: italic; }
+.dash-logo span {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text3); margin-left: 10px;
+}
+.dash-header-right { display: flex; align-items: center; gap: 12px; }
+.refresh-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border2);
+  border-radius: 8px; padding: 7px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 500;
+  color: var(--text2); cursor: pointer;
+  transition: all 0.2s;
+}
+.refresh-btn:hover { background: rgba(255,255,255,0.09); color: var(--text); }
+.last-refresh {
+  font-size: 11px; color: var(--text3);
+  font-family: 'DM Mono', monospace;
+}
+.logout-btn {
+  background: transparent; border: none;
+  font-size: 11px; color: var(--text3);
+  cursor: pointer; transition: color 0.2s;
+}
+.logout-btn:hover { color: var(--red); }
+
+/* Main layout */
+.dash-main { padding: 32px; max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 32px; }
+
+/* Section titles */
+.section-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; font-weight: 400;
+  color: var(--text); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title em { font-style: italic; color: var(--sun); }
+
+/* ── KPI CARDS ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+.kpi-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 22px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color 0.2s;
+}
+.kpi-card:hover { border-color: var(--border2); }
+.kpi-label {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text3);
+}
+.kpi-value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 38px; font-weight: 600;
+  color: var(--text); line-height: 1;
+}
+.kpi-value.amber { color: var(--sun); }
+.kpi-value.green { color: var(--green); }
+.kpi-sub {
+  font-size: 11px; color: var(--text3);
+}
+
+/* ── VENUE TABLE ── */
+.table-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.table-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.table-header-title {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  letter-spacing: 0.3px;
+}
+.export-btn {
+  background: rgba(232,137,12,0.12);
+  border: 1px solid rgba(232,137,12,0.25);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600;
+  color: var(--sun); cursor: pointer;
+  transition: all 0.2s;
+}
+.export-btn:hover { background: rgba(232,137,12,0.2); }
+table { width: 100%; border-collapse: collapse; }
+thead tr { border-bottom: 1px solid var(--border); }
+th {
+  padding: 12px 20px;
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text3); text-align: left;
+}
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+td {
+  padding: 14px 20px;
+  font-size: 13px; color: var(--text2);
+}
+td.venue-name-cell {
+  font-weight: 500; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
+td .venue-emoji { font-size: 16px; }
+.stat-pill {
+  display: inline-flex; align-items: center;
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px; font-weight: 500;
+  color: var(--text);
+}
+.stat-pill.amber { background: rgba(232,137,12,0.12); color: var(--sun); }
+.stat-pill.green { background: rgba(74,222,128,0.1); color: var(--green); }
+.stat-pill.blue  { background: rgba(96,165,250,0.1); color: var(--blue); }
+
+/* ── LEADS TABLE ── */
+.lead-row td { vertical-align: top; }
+.lead-venue { font-weight: 600; color: var(--text); font-size: 13px; }
+.lead-contact { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.lead-address { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.lead-terrace { font-size: 12px; color: var(--text2); font-style: italic; max-width: 260px; }
+.lead-date { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); white-space: nowrap; }
+.lead-lang {
+  display: inline-block;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px; padding: 2px 7px;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.5px; color: var(--text3);
+}
+
+/* ── PERIOD TABS ── */
+.period-tabs {
+  display: flex; gap: 4px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px; padding: 3px;
+  width: fit-content;
+}
+.period-tab {
+  padding: 6px 14px;
+  font-size: 12px; font-weight: 500;
+  border: none; background: transparent;
+  color: var(--text3); border-radius: 7px;
+  cursor: pointer; transition: all 0.18s;
+}
+.period-tab.active {
+  background: var(--bg3);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* ── LOADING / EMPTY ── */
+.loading-row td {
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 13px;
+}
+.spinner-inline {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-top-color: var(--sun);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  vertical-align: middle; margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state {
+  padding: 40px 20px; text-align: center;
+  color: var(--text3); font-size: 13px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 640px) {
+  .dash-main { padding: 16px; }
+  .dash-header { padding: 14px 16px; }
+  th, td { padding: 10px 12px; }
+  .kpi-value { font-size: 30px; }
+  .hide-mobile { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">Lit<em>Spot</em></div>
+    <div class="login-sub">Dashboard admin</div>
+    <input type="email" class="login-input" id="emailInput" placeholder="Email" autocomplete="email" style="letter-spacing:0;">
+    <input type="password" class="login-input" id="pwInput" placeholder="Mot de passe" autocomplete="current-password">
+    <div class="login-error" id="loginError">Email ou mot de passe incorrect</div>
+    <button class="login-btn" id="loginBtn" onclick="tryLogin()">Accéder</button>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="dashboard">
+
+  <div class="dash-header">
+    <div>
+      <div class="dash-logo">Lit<em>Spot</em> <span>Admin</span></div>
+    </div>
+    <div class="dash-header-right">
+      <div class="last-refresh" id="lastRefresh">—</div>
+      <button class="refresh-btn" onclick="loadAll()">↻ Rafraîchir</button>
+      <button class="logout-btn" onclick="logout()">Déconnexion</button>
+    </div>
+  </div>
+
+  <div class="dash-main">
+
+    <!-- Period selector -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div class="section-title" style="margin-bottom:0;">Vue d'ensemble</div>
+      <div class="period-tabs">
+        <button class="period-tab active" onclick="setPeriod(7, this)">7 jours</button>
+        <button class="period-tab" onclick="setPeriod(30, this)">30 jours</button>
+        <button class="period-tab" onclick="setPeriod(90, this)">90 jours</button>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid" id="kpiGrid">
+      <div class="kpi-card"><div class="kpi-label">Sessions</div><div class="kpi-value" id="kpiSessions">—</div><div class="kpi-sub">ouvertures de l'app</div></div>
+      <div class="kpi-card"><div class="kpi-label">Utilisateurs uniques</div><div class="kpi-value amber" id="kpiUsers">—</div><div class="kpi-sub">appareils distincts</div></div>
+      <div class="kpi-card"><div class="kpi-label">Nouveaux</div><div class="kpi-value green" id="kpiNew">—</div><div class="kpi-sub">première visite</div></div>
+      <div class="kpi-card"><div class="kpi-label">Leads reçus</div><div class="kpi-value" id="kpiLeads">—</div><div class="kpi-sub">formulaire partners</div></div>
+      <div class="kpi-card"><div class="kpi-label">Clics itinéraire</div><div class="kpi-value" id="kpiDir">—</div><div class="kpi-sub">toutes venues</div></div>
+      <div class="kpi-card"><div class="kpi-label">Clics réservation</div><div class="kpi-value amber" id="kpiRes">—</div><div class="kpi-sub">toutes venues</div></div>
+    </div>
+
+    <!-- Venue stats -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+        <div class="section-title" style="margin-bottom:0;">Stats par <em>venue</em></div>
+        <button class="export-btn" onclick="exportVenueCSV()">⬇ Exporter CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Venue</th>
+              <th>Vues fiche</th>
+              <th>Itinéraires</th>
+              <th>Réservations</th>
+              <th class="hide-mobile">Taux rés.</th>
+            </tr>
+          </thead>
+          <tbody id="venueTableBody">
+            <tr class="loading-row"><td colspan="5"><span class="spinner-inline"></span>Chargement…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Leads -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+        <div class="section-title" style="margin-bottom:0;">Leads <em>partenaires</em></div>
+        <button class="export-btn" onclick="exportLeadsCSV()">⬇ Exporter CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Établissement</th>
+              <th>Contact</th>
+              <th class="hide-mobile">Terrasse</th>
+              <th>Date</th>
+              <th>Langue</th>
+            </tr>
+          </thead>
+          <tbody id="leadsTableBody">
+            <tr class="loading-row"><td colspan="5"><span class="spinner-inline"></span>Chargement…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── CONFIG
+const SUPABASE_URL = 'https://dogontqbkihwircaldie.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvZ29udHFia2lod2lyY2FsZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyOTI3ODYsImV4cCI6MjA5Mjg2ODc4Nn0.5tvkp_zIEMZS8TM1PIYBuEJyBRIIvaTPzU3j9OTbMAA';
+
+// Init Supabase client (v2)
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentPeriodDays = 7;
+let venueData = [];
+let leadsData = [];
+let authToken = null; // JWT from Supabase Auth — used in all API calls
+
+// ── AUTH
+async function tryLogin() {
+  const email = document.getElementById('emailInput').value.trim();
+  const pw    = document.getElementById('pwInput').value;
+  const btn   = document.getElementById('loginBtn');
+  const err   = document.getElementById('loginError');
+
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  err.style.display = 'none';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+
+  if (error || !data.session) {
+    // Wrong credentials
+    document.getElementById('pwInput').classList.add('error');
+    err.style.display = 'block';
+    setTimeout(() => document.getElementById('pwInput').classList.remove('error'), 400);
+    document.getElementById('pwInput').value = '';
+    btn.textContent = 'Accéder';
+    btn.disabled = false;
+    return;
+  }
+
+  // Success — store JWT for authenticated API calls
+  authToken = data.session.access_token;
+  showDashboard();
+}
+
+// Enter key on either field
+['emailInput', 'pwInput'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryLogin();
+  });
+});
+
+async function logout() {
+  await sb.auth.signOut();
+  authToken = null;
+  location.reload();
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  loadAll();
+}
+
+// ── AUTO-RESTORE SESSION (persisted by Supabase in localStorage)
+async function initAuth() {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
+    authToken = data.session.access_token;
+    showDashboard();
+  }
+}
+initAuth();
+
+// ── PERIOD
+function setPeriod(days, btn) {
+  currentPeriodDays = days;
+  document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadAll();
+}
+
+// ── SUPABASE FETCH HELPER (uses authenticated JWT)
+async function sbFetch(path) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${authToken || SUPABASE_KEY}`,
+    }
+  });
+  return res.json();
+}
+
+// ── DATE HELPERS
+function periodStart(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-CA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ── LOAD ALL DATA
+async function loadAll() {
+  const since = periodStart(currentPeriodDays);
+  document.getElementById('lastRefresh').textContent = 'Mise à jour ' + new Date().toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' });
+
+  await Promise.all([
+    loadSessions(since),
+    loadVenueClicks(since),
+    loadLeads(),
+  ]);
+}
+
+// ── SESSIONS
+async function loadSessions(since) {
+  try {
+    const data = await sbFetch(`app_sessions?created_at=gte.${since}&select=user_id,is_new_user`);
+    const sessions = data.length || 0;
+    const uniqueUsers = new Set(data.map(r => r.user_id)).size;
+    const newUsers = data.filter(r => r.is_new_user).length;
+    document.getElementById('kpiSessions').textContent = sessions;
+    document.getElementById('kpiUsers').textContent = uniqueUsers;
+    document.getElementById('kpiNew').textContent = newUsers;
+  } catch(e) {
+    ['kpiSessions','kpiUsers','kpiNew'].forEach(id => document.getElementById(id).textContent = '—');
+  }
+}
+
+// ── VENUE CLICKS
+async function loadVenueClicks(since) {
+  try {
+    // Load venues list for names/emojis
+    const venues = await sbFetch(`venues?active=eq.true&select=id,name,emoji`);
+    // Load all clicks in period
+    const clicks = await sbFetch(`venue_clicks?created_at=gte.${since}&select=venue_id,click_type`);
+
+    // Also load total leads count
+    const leads = await sbFetch(`leads?select=id`);
+    document.getElementById('kpiLeads').textContent = leads.length || 0;
+
+    // Aggregate by venue
+    const stats = {};
+    venues.forEach(v => {
+      stats[v.id] = { name: v.name, emoji: v.emoji, views: 0, directions: 0, reserve: 0 };
+    });
+    clicks.forEach(c => {
+      if (!stats[c.venue_id]) return;
+      if (c.click_type === 'card_view')        stats[c.venue_id].views++;
+      if (c.click_type === 'directions_click') stats[c.venue_id].directions++;
+      if (c.click_type === 'reserve_click')    stats[c.venue_id].reserve++;
+    });
+
+    // Total clicks for KPIs
+    const totalDir = clicks.filter(c => c.click_type === 'directions_click').length;
+    const totalRes = clicks.filter(c => c.click_type === 'reserve_click').length;
+    document.getElementById('kpiDir').textContent = totalDir;
+    document.getElementById('kpiRes').textContent = totalRes;
+
+    // Sort by views desc
+    venueData = Object.values(stats).sort((a, b) => b.views - a.views);
+    renderVenueTable(venueData);
+  } catch(e) {
+    document.getElementById('venueTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;">Erreur de chargement</td></tr>';
+  }
+}
+
+function renderVenueTable(data) {
+  const tbody = document.getElementById('venueTableBody');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Aucune donnée pour cette période</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(v => {
+    const rate = v.views > 0 ? Math.round((v.reserve / v.views) * 100) : 0;
+    return `
+      <tr>
+        <td><span style="display:flex;align-items:center;gap:8px;font-weight:500;color:var(--text);">
+          <span>${v.emoji}</span>${v.name}
+        </span></td>
+        <td><span class="stat-pill">${v.views}</span></td>
+        <td><span class="stat-pill blue">${v.directions}</span></td>
+        <td><span class="stat-pill amber">${v.reserve}</span></td>
+        <td class="hide-mobile"><span class="stat-pill ${rate > 5 ? 'green' : ''}">${rate}%</span></td>
+      </tr>`;
+  }).join('');
+}
+
+// ── LEADS
+async function loadLeads() {
+  try {
+    const data = await sbFetch(`leads?order=created_at.desc&select=*`);
+    leadsData = data;
+    renderLeadsTable(data);
+  } catch(e) {
+    document.getElementById('leadsTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--red);padding:24px;">Erreur de chargement</td></tr>';
+  }
+}
+
+function renderLeadsTable(data) {
+  const tbody = document.getElementById('leadsTableBody');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Aucun lead pour le moment ☀️</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(l => `
+    <tr class="lead-row">
+      <td>
+        <div class="lead-venue">${l.venue || '—'}</div>
+        <div class="lead-address">${l.address || ''}</div>
+      </td>
+      <td>
+        <div class="lead-contact">${l.name || '—'}</div>
+        <div class="lead-contact"><a href="mailto:${l.email}" style="color:var(--sun);text-decoration:none;">${l.email || ''}</a></div>
+        <div class="lead-contact">${l.phone || ''}</div>
+      </td>
+      <td class="hide-mobile"><div class="lead-terrace">${l.terrace || '—'}</div></td>
+      <td><div class="lead-date">${fmtDate(l.created_at)}</div></td>
+      <td><span class="lead-lang">${(l.lang || 'fr').toUpperCase()}</span></td>
+    </tr>`).join('');
+}
+
+// ── CSV EXPORTS
+function toCSV(rows, headers) {
+  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  return [headers.join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
+}
+
+function downloadCSV(csv, filename) {
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportVenueCSV() {
+  if (!venueData.length) return;
+  const period = currentPeriodDays + 'j';
+  const csv = toCSV(
+    venueData.map(v => [v.name, v.views, v.directions, v.reserve, v.views > 0 ? Math.round(v.reserve/v.views*100)+'%' : '0%']),
+    ['Venue', 'Vues fiche', 'Clics itinéraire', 'Clics réservation', 'Taux réservation']
+  );
+  downloadCSV(csv, `litspot-venues-${period}-${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+function exportLeadsCSV() {
+  if (!leadsData.length) return;
+  const csv = toCSV(
+    leadsData.map(l => [l.created_at, l.venue, l.name, l.email, l.phone, l.address, l.terrace, l.lang]),
+    ['Date', 'Établissement', 'Nom', 'Email', 'Téléphone', 'Adresse', 'Terrasse', 'Langue']
+  );
+  downloadCSV(csv, `litspot-leads-${new Date().toISOString().slice(0,10)}.csv`);
+}
+
+// loadAll() is called by showDashboard() after successful auth
+
+</script>
+</body>
+</html>
